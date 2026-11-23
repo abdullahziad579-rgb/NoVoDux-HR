@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الموارد البشرية</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.theme-light{--bg:#F4F6F8;--surface:#FFFFFF;--surface2:#F4F6F8;--border:#E3E7EC;--border2:#C9CFD6;--row:#EEF1F4;--ink:#1D2433;--muted:#5B6475;--accent:#0F766E;--on-accent:#FFFFFF;--accent-soft:#E7F6F2;--accent-soft-ink:#0B5A50;--accent-soft-bd:#A7DCCF;--warn-bg:#FFF7E6;--warn-bd:#F3DDAE;--warn-ink:#7A4A00;--err-bg:#FEF3F2;--err-bd:#FECDCA;--err-ink:#912018;--danger:#B42318;--ok-bg:#DCFCE7;--ok-ink:#14532D;--off-bg:#EEF1F4;--off-ink:#4A5262;--dis-bg:#C9CFD6;--dis-ink:#4A5262;color-scheme:light}
+.theme-dark{--bg:#0F141A;--surface:#171D25;--surface2:#1F2731;--border:#2A323D;--border2:#3A4452;--row:#232B35;--ink:#E6EAF0;--muted:#A3ACB9;--accent:#2DD4BF;--on-accent:#06231F;--accent-soft:#123B36;--accent-soft-ink:#8DEBDC;--accent-soft-bd:#1F5C54;--warn-bg:#33260B;--warn-bd:#5C4514;--warn-ink:#F6C978;--err-bg:#3A1616;--err-bd:#6B2626;--err-ink:#FCA5A5;--danger:#F87171;--ok-bg:#12351F;--ok-ink:#86EFAC;--off-bg:#2A323D;--off-ink:#C9D1DB;--dis-bg:#2A323D;--dis-ink:#A3ACB9;color-scheme:dark}
+a{color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.btn,.btn2,.btnd{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-size:14px;font-weight:600;border-radius:8px;padding:10px 16px;min-height:44px;cursor:pointer}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent)}
+.btn2{border:1px solid var(--border2);background:var(--surface);color:var(--ink)}
+.btnd{border:1px solid var(--danger);background:var(--surface);color:var(--danger)}
+.btn:disabled,.btn2:disabled,.btnd:disabled{opacity:.55;cursor:not-allowed}
+.sm{min-height:36px;padding:6px 12px;font-size:13px}
+.lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.inp{font:inherit;font-size:15px;width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--ink)}
+.inp:focus,.btn:focus-visible,.btn2:focus-visible,.btnd:focus-visible,.nav-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.between{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted);font-size:13px}
+h1{margin:0;font-size:22px}
+h2{margin:0 0 12px;font-size:16px}
+table{width:100%;border-collapse:collapse}
+th{font-size:13px;font-weight:600;color:var(--muted);text-align:start;padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{font-size:14px;padding:10px 12px;border-bottom:1px solid var(--row);text-align:start;vertical-align:middle}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--surface2)}
+.scroll{overflow-x:auto}
+.chip{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.on{background:var(--ok-bg);color:var(--ok-ink)}
+.chip.off{background:var(--off-bg);color:var(--off-ink)}
+.chip.err{background:var(--err-bg);color:var(--err-ink)}
+.chip.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.box{border-radius:10px;padding:12px 16px}
+.box.ok{background:var(--accent-soft);border:1px solid var(--accent-soft-bd);color:var(--accent-soft-ink)}
+.box.warn{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn-ink)}
+.box.err{background:var(--err-bg);border:1px solid var(--err-bd);color:var(--err-ink)}
+header.top{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.logo{width:40px;height:40px;border-radius:10px;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center}
+.layout{display:flex;flex-wrap:wrap;min-height:calc(100vh - 62px)}
+nav.side{flex:1 1 220px;max-width:250px;min-width:200px;background:var(--surface);border-inline-end:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:4px}
+.nav-btn{font:inherit;font-size:15px;text-align:start;min-height:44px;padding:10px 14px;border-radius:8px;cursor:pointer;border:none;background:transparent;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.nav-btn.active{background:var(--accent-soft);color:var(--accent-soft-ink);font-weight:700}
+.nav-btn:disabled{color:var(--muted);cursor:default}
+main{flex:999 1 560px;min-width:0;padding:24px;display:flex;flex-direction:column;gap:18px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:50;max-width:min(92vw,560px);display:none;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login{width:100%;max-width:400px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font:inherit;font-size:14px;font-weight:600;min-height:40px;padding:6px 14px;border-radius:999px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--ink)}
+.pill.on{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+.check{display:flex;align-items:center;gap:8px;min-height:36px;font-size:14px}
+.check input{width:18px;height:18px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:640px){main{padding:14px}nav.side{max-width:none;flex-direction:row;overflow-x:auto}.nav-btn{white-space:nowrap}}
+</style>
+</head>
+<body class="theme-light">
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* ====================== الإعدادات ====================== */
+const CFG = window.__HR_CFG || {
+  url: 'https://hsbgxizumlhxqesphxjq.supabase.co',
+  key: 'sb_publishable_Z-JZLh56hiIRO2evHuCdxg_JElVnmLs'
+};
+const sb = window.supabase.createClient(CFG.url, CFG.key);
+
+/* ====================== النصوص ====================== */
+const TX = {
+  ar: {
+    app: 'الموارد البشرية', langBtn: 'English', toDark: 'داكن', toLight: 'فاتح', logout: 'خروج', admin: 'أدمن', manager: 'مدير فرع',
+    loginTitle: 'تسجيل الدخول', loginUser: 'الإيميل أو اسم المستخدم', loginPass: 'الباسورد', loginBtn: 'دخول', loginBad: 'الإيميل/اليوزر أو الباسورد غلط.', noUser: 'اسم المستخدم ده مش موجود.',
+    noProfile: 'الحساب ده مش متفعّل في السيستم. كلّم الأدمن.', loading: 'جاري التحميل...',
+    nHome: 'الرئيسية', nEmployees: 'الموظفين', nImport: 'استيراد الموظفين', nUsers: 'المستخدمين', nSettings: 'الإعدادات', nAccount: 'حسابي',
+    nReg: 'تسجيل حدث', nReview: 'المراجعة والاعتماد', nReports: 'التقارير', soon: 'قريباً',
+    hActive: 'موظفين نشطين', hBranches: 'فروع شغالة', hTypes: 'أنواع أحداث نشطة', hOpen: 'شهور مفتوحة للتسجيل', hByBranch: 'الموظفين النشطين حسب الفرع', hNext: 'الخطوات الجاية',
+    hStep1: 'ضيف باقي الفروع من الإعدادات.', hStep2: 'دخّل الموظفين من "استيراد الموظفين".', hStep3: 'اعمل حسابات مديرين الفروع من "المستخدمين".', hStep4: 'حدد أرصدة الإجازات من الإعدادات.',
+    search: 'بحث بالاسم أو الكود', allBranches: 'كل الفروع', stActive: 'نشط', stTerm: 'منتهي الخدمة', stAll: 'الكل', newEmp: '+ موظف جديد', count: 'العدد',
+    cCode: 'الكود', cName: 'الاسم', cBranch: 'الفرع', cJob: 'المسمى الوظيفي', cHire: 'تاريخ التعيين', cStatus: 'الحالة', noRows: 'مفيش نتايج.',
+    empNew: 'موظف جديد', empEdit: 'ملف الموظف', back: 'رجوع', save: 'حفظ', saved: 'اتحفظ.', cancel: 'إلغاء', required: 'إلزامي',
+    fCode: 'كود الموظف', fName: 'الاسم بالكامل', fBranch: 'الفرع الأساسي', fHire: 'تاريخ التعيين', fJob: 'المسمى الوظيفي', fDept: 'القسم', fMgr: 'المدير المباشر', none: '—',
+    fNid: 'الرقم القومي', fPhone: 'الموبايل', fBirth: 'تاريخ الميلاد', fAddr: 'العنوان', fFinger: 'كود البصمة', fSalary: 'المرتب', fSalaryNote: 'ظاهر للأدمن بس', fNotes: 'ملاحظات', fExtra: 'فروع إضافية',
+    fTransferDate: 'تاريخ سريان النقل', transferNote: 'غيّرت الفرع الأساسي: هيتسجل نقل بالتاريخ ده.',
+    sec1: 'البيانات الأساسية', sec2: 'بيانات إضافية', sec3: 'الحالة وفترات العمل', sec4: 'سجل التنقلات',
+    terminate: 'إنهاء الخدمة', endDate: 'تاريخ انتهاء العمل', endReason: 'السبب', endNotes: 'ملاحظات', confirmTerm: 'تأكيد إنهاء الخدمة', termDone: 'اتنهت الخدمة.',
+    rehire: 'إعادة تعيين', rehireDate: 'تاريخ إعادة التعيين', rehireDone: 'اتعمل إعادة تعيين بنفس الكود والملف.', periods: 'فترات العمل', from: 'من', to: 'إلى', now: 'لحد دلوقتي',
+    noTransfers: 'مفيش تنقلات.', fieldsMissing: 'كمّل الخانات الإلزامية.',
+    impTitle: 'استيراد الموظفين من Excel', impStep1: '1. نزّل الشيت الجاهز واملاه (سطر لكل موظف).', impStep2: '2. ارفع الشيت هنا وراجع النتيجة.', impStep3: '3. دوس استيراد.',
+    impTemplate: 'تنزيل الشيت الجاهز', impPick: 'اختار ملف Excel', impRows: 'سطر', impNew: 'جديد', impUpd: 'تحديث', impBad: 'فيه مشكلة', impGo: 'استيراد السطور السليمة', impDone: 'اتستورد {n} موظف.',
+    impNote: 'الموظف الموجود بنفس الكود بياناته بتتحدث. نقل الموظف لفرع تاني اعمله من ملفه عشان يتسجل بتاريخ.', impReq: 'الخانات الإلزامية: الكود، الاسم، الفرع، تاريخ التعيين، المسمى الوظيفي.',
+    eNoCode: 'مفيش كود', eDupCode: 'الكود متكرر في الشيت', eNoName: 'مفيش اسم', eBranch: 'الفرع مش موجود', eHire: 'تاريخ التعيين ناقص أو غلط', eJob: 'المسمى الوظيفي ناقص', eDate: 'تاريخ مش مفهوم', eSalary: 'المرتب لازم رقم',
+    wBranchKept: 'الفرع مختلف عن الحالي، وهيفضل زي ما هو', cResult: 'النتيجة', cRow: 'سطر',
+    uTitle: 'المستخدمين', uHow: 'إزاي تضيف مدير فرع: 1) اعمله حساب في Supabase > Authentication > Users > Add user (إيميل وباسورد + Auto Confirm). 2) اربطه هنا بفرعه.',
+    uEmail: 'الإيميل', uUsername: 'اسم المستخدم', uFull: 'الاسم', uRole: 'الدور', uBranch: 'الفرع', uLink: 'ربط الحساب', uLinked: 'اتربط الحساب.', uLast: 'آخر دخول', uActive: 'متفعّل', uOff: 'مقفول',
+    uDisable: 'قفل', uEnable: 'تفعيل', never: 'لسه',
+    sTitle: 'الإعدادات', sBranches: 'الفروع', sAddBranch: 'إضافة فرع', sNameAr: 'الاسم بالعربي', sNameEn: 'الاسم بالإنجليزي', sClose: 'قفل', sOpen: 'فتح', sDelete: 'حذف', sDelBlocked: 'مينفعش يتحذف لأن عليه بيانات. اقفله بدل الحذف.',
+    sDepts: 'الأقسام', sAddDept: 'إضافة قسم', sPeriods: 'فترات التسجيل', sPeriodsNote: 'المديرين يسجلوا بس في الشهور المفتوحة.', sAddMonth: 'إضافة شهر', sOpenTxt: 'مفتوح', sClosedTxt: 'مقفول',
+    sTypes: 'أنواع الأحداث', sAddType: '+ نوع حدث جديد', sEdit: 'تعديل', sDetails: 'التفاصيل', sAddDetail: '+ تفصيلة', sDefault: 'الافتراضي', sUnitOverride: 'وحدة مختلفة',
+    cat: 'الفئة', unit: 'الوحدة', needsTime: 'يحتاج وقت من/إلى', needsRange: 'يحتاج تاريخ من/إلى', attach: 'المرفق', balance: 'يخصم من رصيد', countRep: 'يعد التكرار', countWin: 'العد في', active: 'نشط', sort: 'الترتيب',
+    catDed: 'خصم', catEnt: 'مستحق', catLeave: 'إجازة', catPerm: 'إذن', catNeu: 'محايد', uHour: 'ساعة', uDay: 'يوم', uAmount: 'مبلغ',
+    attNone: 'مش موجود', attOpt: 'اختياري', attReq: 'مطلوب', balNone: '—', balAnnual: 'اعتيادي', balCasual: 'عارضة', winMonth: 'الشهر', winYear: 'السنة', yes: 'نعم',
+    sGeneral: 'أرصدة الإجازات والإعدادات العامة', gAnnual: 'رصيد الاعتيادي في السنة (أيام)', gCasual: 'رصيد العارضة في السنة (أيام)', gElig: 'شهور قبل استحقاق الإجازة', gCap: 'الحد الشهري للاعتيادي (فاضي = مقفول)', gKeep: 'مدة الاحتفاظ بالمرفقات بالسنين (فاضي = للأبد)',
+    aTitle: 'حسابي', aNewPass: 'باسورد جديد', aNewPass2: 'تأكيد الباسورد', aChange: 'تغيير الباسورد', aChanged: 'اتغير الباسورد.', aMismatch: 'الباسوردين مش زي بعض.', aShort: 'الباسورد لازم 8 حروف على الأقل.',
+    errGeneric: 'حصل خطأ: ', confirmDel: 'متأكد إنك عايز تحذف؟', mgrNote: 'بتشوف موظفين فرعك بس. التعديل للأدمن.'
+  },
+  en: {
+    app: 'HR', langBtn: 'العربية', toDark: 'Dark', toLight: 'Light', logout: 'Sign out', admin: 'Admin', manager: 'Branch manager',
+    loginTitle: 'Sign in', loginUser: 'Email or username', loginPass: 'Password', loginBtn: 'Sign in', loginBad: 'Wrong email/username or password.', noUser: 'This username does not exist.',
+    noProfile: 'This account is not activated in the system. Contact the admin.', loading: 'Loading...',
+    nHome: 'Home', nEmployees: 'Employees', nImport: 'Import employees', nUsers: 'Users', nSettings: 'Settings', nAccount: 'My account',
+    nReg: 'Record event', nReview: 'Review & approval', nReports: 'Reports', soon: 'Soon',
+    hActive: 'Active employees', hBranches: 'Open branches', hTypes: 'Active event types', hOpen: 'Months open for entry', hByBranch: 'Active employees by branch', hNext: 'Next steps',
+    hStep1: 'Add the other branches in Settings.', hStep2: 'Load employees from "Import employees".', hStep3: 'Create branch manager accounts in "Users".', hStep4: 'Set leave balances in Settings.',
+    search: 'Search by name or code', allBranches: 'All branches', stActive: 'Active', stTerm: 'Terminated', stAll: 'All', newEmp: '+ New employee', count: 'Count',
+    cCode: 'Code', cName: 'Name', cBranch: 'Branch', cJob: 'Job title', cHire: 'Hire date', cStatus: 'Status', noRows: 'No results.',
+    empNew: 'New employee', empEdit: 'Employee file', back: 'Back', save: 'Save', saved: 'Saved.', cancel: 'Cancel', required: 'Required',
+    fCode: 'Employee code', fName: 'Full name', fBranch: 'Main branch', fHire: 'Hire date', fJob: 'Job title', fDept: 'Department', fMgr: 'Direct manager', none: '—',
+    fNid: 'National ID', fPhone: 'Mobile', fBirth: 'Birth date', fAddr: 'Address', fFinger: 'Fingerprint code', fSalary: 'Salary', fSalaryNote: 'Admin only', fNotes: 'Notes', fExtra: 'Additional branches',
+    fTransferDate: 'Transfer effective date', transferNote: 'You changed the main branch: a transfer will be recorded with this date.',
+    sec1: 'Basic details', sec2: 'More details', sec3: 'Status & work periods', sec4: 'Transfer history',
+    terminate: 'End employment', endDate: 'End date', endReason: 'Reason', endNotes: 'Notes', confirmTerm: 'Confirm end of employment', termDone: 'Employment ended.',
+    rehire: 'Rehire', rehireDate: 'Rehire date', rehireDone: 'Rehired with the same code and file.', periods: 'Work periods', from: 'From', to: 'To', now: 'Present',
+    noTransfers: 'No transfers.', fieldsMissing: 'Fill in the required fields.',
+    impTitle: 'Import employees from Excel', impStep1: '1. Download the template and fill it in (one row per employee).', impStep2: '2. Upload it here and check the result.', impStep3: '3. Press import.',
+    impTemplate: 'Download template', impPick: 'Choose Excel file', impRows: 'rows', impNew: 'New', impUpd: 'Update', impBad: 'Has a problem', impGo: 'Import valid rows', impDone: '{n} employees imported.',
+    impNote: 'An existing employee with the same code is updated. Move an employee to another branch from their file so the transfer is dated.', impReq: 'Required: code, name, branch, hire date, job title.',
+    eNoCode: 'No code', eDupCode: 'Code repeated in the sheet', eNoName: 'No name', eBranch: 'Unknown branch', eHire: 'Hire date missing or invalid', eJob: 'Job title missing', eDate: 'Unreadable date', eSalary: 'Salary must be a number',
+    wBranchKept: 'Branch differs from current one and is kept as is', cResult: 'Result', cRow: 'Row',
+    uTitle: 'Users', uHow: 'To add a branch manager: 1) create the account in Supabase > Authentication > Users > Add user (email, password, Auto Confirm). 2) Link it to its branch here.',
+    uEmail: 'Email', uUsername: 'Username', uFull: 'Name', uRole: 'Role', uBranch: 'Branch', uLink: 'Link account', uLinked: 'Account linked.', uLast: 'Last sign-in', uActive: 'Active', uOff: 'Disabled',
+    uDisable: 'Disable', uEnable: 'Enable', never: 'Never',
+    sTitle: 'Settings', sBranches: 'Branches', sAddBranch: 'Add branch', sNameAr: 'Arabic name', sNameEn: 'English name', sClose: 'Close', sOpen: 'Open', sDelete: 'Delete', sDelBlocked: 'Cannot be deleted because it has data. Close it instead.',
+    sDepts: 'Departments', sAddDept: 'Add department', sPeriods: 'Entry periods', sPeriodsNote: 'Managers can record only in open months.', sAddMonth: 'Add month', sOpenTxt: 'Open', sClosedTxt: 'Closed',
+    sTypes: 'Event types', sAddType: '+ New event type', sEdit: 'Edit', sDetails: 'Details', sAddDetail: '+ Detail', sDefault: 'Default', sUnitOverride: 'Different unit',
+    cat: 'Category', unit: 'Unit', needsTime: 'Needs time from/to', needsRange: 'Needs date range', attach: 'Attachment', balance: 'Uses balance', countRep: 'Count repeats', countWin: 'Count per', active: 'Active', sort: 'Order',
+    catDed: 'Deduction', catEnt: 'Entitlement', catLeave: 'Leave', catPerm: 'Permission', catNeu: 'Neutral', uHour: 'Hour', uDay: 'Day', uAmount: 'Amount',
+    attNone: 'None', attOpt: 'Optional', attReq: 'Required', balNone: '—', balAnnual: 'Annual', balCasual: 'Casual', winMonth: 'Month', winYear: 'Year', yes: 'Yes',
+    sGeneral: 'Leave balances & general settings', gAnnual: 'Annual leave per year (days)', gCasual: 'Casual leave per year (days)', gElig: 'Months before leave eligibility', gCap: 'Monthly cap for annual leave (empty = off)', gKeep: 'Keep attachments for (years, empty = forever)',
+    aTitle: 'My account', aNewPass: 'New password', aNewPass2: 'Confirm password', aChange: 'Change password', aChanged: 'Password changed.', aMismatch: 'Passwords do not match.', aShort: 'Password must be at least 8 characters.',
+    errGeneric: 'Error: ', confirmDel: 'Are you sure you want to delete?', mgrNote: 'You see your branch employees only. Editing is for the admin.'
+  }
+};
+
+/* ====================== الحالة ====================== */
+const S = { lang: pref('hr_lang', 'ar'), theme: pref('hr_theme', 'light'), session: null, profile: null, route: 'home', param: null, branches: [], cache: {} };
+function pref(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
+function setPref(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+const t = (k, o) => { let s = (TX[S.lang][k] ?? TX.ar[k] ?? k); if (o) s = s.replace(/\{(\w+)\}/g, (m, x) => o[x] ?? m); return s; };
+const isAdmin = () => S.profile && S.profile.role === 'admin';
+const L = () => S.lang === 'en';
+const bName = (b) => (b ? (L() && b.name_en ? b.name_en : b.name) : '—');
+const nm = (x) => (x ? (L() && x.name_en ? x.name_en : x.name) : '—');
+const nn = (v) => (v === '' || v === undefined ? null : v);
+const cmpCode = (a, b) => String(a).localeCompare(String(b), 'en', { numeric: true });
+
+/* ====================== أدوات الواجهة ====================== */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) for (const k in props) {
+    const v = props[k];
+    if (v == null || v === false) continue;
+    if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === 'class') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k === 'value' || k === 'checked' || k === 'selected' || k === 'disabled') el[k] = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat(Infinity)) { if (c == null || c === false) continue; el.append(c.nodeType ? c : document.createTextNode(String(c))); }
+  return el;
+}
+function field(label, input, opts = {}) {
+  const id = input.id || ('f' + Math.random().toString(36).slice(2, 8)); input.id = id;
+  return h('div', { style: opts.full ? 'grid-column:1/-1' : '' }, h('label', { class: 'lbl', for: id }, label, opts.req ? ' *' : ''), input, opts.note ? h('div', { class: 'muted', style: 'margin-top:4px' }, opts.note) : null);
+}
+const inp = (attrs) => h('input', Object.assign({ class: 'inp' }, attrs));
+function sel(options, value, attrs = {}) {
+  return h('select', Object.assign({ class: 'inp' }, attrs), options.map(([v, l]) => h('option', { value: v ?? '', selected: String(v ?? '') === String(value ?? '') }, l)));
+}
+function toast(msg, kind = 'ok') {
+  const el = document.getElementById('toast');
+  el.className = 'box ' + kind; el.textContent = msg; el.style.display = 'block';
+  clearTimeout(toast._t); toast._t = setTimeout(() => (el.style.display = 'none'), kind === 'err' ? 7000 : 3500);
+}
+function fail(e) { console.error(e); toast(t('errGeneric') + ((e && (e.message || e.error_description)) || e), 'err'); }
+async function q(p) { const r = await p; if (r.error) throw r.error; return r.data; }
+const chip = (txt, kind) => h('span', { class: 'chip ' + kind }, txt);
+const icon = (path) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('width', '20'); s.setAttribute('height', '20'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
+const fmtDate = (d) => { if (!d) return '—'; const [y, m, dd] = String(d).slice(0, 10).split('-'); return dd + '/' + m + '/' + y; };
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+function applyChrome() {
+  document.documentElement.lang = S.lang; document.documentElement.dir = L() ? 'ltr' : 'rtl';
+  document.body.className = S.theme === 'dark' ? 'theme-dark' : 'theme-light';
+  document.title = t('app');
+}
+function go(route, param) { S.route = route; S.param = param ?? null; location.hash = route + (param != null ? '/' + param : ''); render(); }
+window.addEventListener('hashchange', () => { const [r, p] = location.hash.replace(/^#/, '').split('/'); if (r && (r !== S.route || (p ?? null) !== (S.param ?? null))) { S.route = r; S.param = p ?? null; render(); } });
+
+/* ====================== الدخول ====================== */
+function viewLogin(msg) {
+  const user = inp({ type: 'text', autocomplete: 'username', required: true });
+  const pass = inp({ type: 'password', autocomplete: 'current-password', required: true });
+  const btn = h('button', { class: 'btn', type: 'submit', style: 'width:100%' }, t('loginBtn'));
+  const err = h('div', { class: 'box err', style: msg ? '' : 'display:none' }, msg || '');
+  const form = h('form', { class: 'card login', style: 'display:flex;flex-direction:column;gap:14px', onSubmit: async (e) => {
+    e.preventDefault(); btn.disabled = true; err.style.display = 'none';
+    try {
+      let email = user.value.trim();
+      if (!email.includes('@')) {
+        const found = await q(sb.rpc('email_for_login', { p_username: email }));
+        if (!found) throw new Error(t('noUser'));
+        email = found;
+      }
+      const r = await sb.auth.signInWithPassword({ email, password: pass.value });
+      if (r.error) throw new Error(t('loginBad'));
+      S.session = r.data.session; await boot();
+    } catch (ex) { err.textContent = ex.message; err.style.display = ''; btn.disabled = false; }
+  } },
+    h('div', { class: 'between' }, h('div', { class: 'row' }, h('div', { class: 'logo' }, icon('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>')), h('h1', null, t('loginTitle'))), chromeButtons(true)),
+    field(t('loginUser'), user), field(t('loginPass'), pass), err, btn);
+  return h('div', { class: 'login-wrap' }, form);
+}
+function chromeButtons(compact) {
+  return h('div', { class: 'row' },
+    h('button', { class: 'btn2 sm', type: 'button', lang: L() ? 'ar' : 'en', onClick: () => { S.lang = L() ? 'ar' : 'en'; setPref('hr_lang', S.lang); render(); } }, t('langBtn')),
+    h('button', { class: 'btn2 sm', type: 'button', onClick: () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; setPref('hr_theme', S.theme); render(); } },
+      icon(S.theme === 'dark' ? '<circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>' : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'),
+      ' ', S.theme === 'dark' ? t('toLight') : t('toDark')));
+}
+
+async function boot() {
+  try {
+    const uid = S.session.user.id;
+    const prof = await q(sb.from('profiles').select('*').eq('id', uid).maybeSingle());
+    if (!prof || !prof.is_active) { await sb.auth.signOut(); S.session = null; S.profile = null; applyChrome(); mount(viewLogin(t('noProfile'))); return; }
+    S.profile = prof;
+    await loadBranches();
+    const [r, p] = location.hash.replace(/^#/, '').split('/');
+    S.route = r || 'home'; S.param = p ?? null;
+    render();
+  } catch (e) { fail(e); }
+}
+async function loadBranches() { S.branches = await q(sb.from('branches').select('*').order('id')); }
+function mount(node) { const app = document.getElementById('app'); app.replaceChildren(node); }
+
+/* ====================== الإطار ====================== */
+function shell(content) {
+  const adminNav = [['home', t('nHome')], ['employees', t('nEmployees')], ['import', t('nImport')], ['users', t('nUsers')], ['settings', t('nSettings')]];
+  const mgrNav = [['home', t('nHome')], ['employees', t('nEmployees')]];
+  const soonNav = [t('nReg'), isAdmin() ? t('nReview') : null, isAdmin() ? t('nReports') : null].filter(Boolean);
+  const navItems = (isAdmin() ? adminNav : mgrNav).concat([['account', t('nAccount')]]);
+  const myBranch = S.branches.find((b) => b.id === S.profile.branch_id);
+  return h('div', null,
+    h('header', { class: 'top' },
+      h('div', { class: 'row', style: 'gap:12px' }, h('div', { class: 'logo' }, icon('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>')),
+        h('div', null, h('div', { style: 'font-weight:700;font-size:17px' }, t('app')), h('div', { class: 'muted' }, S.profile.full_name + ' · ' + (isAdmin() ? t('admin') : t('manager') + ' ' + bName(myBranch))))),
+      h('div', { class: 'row' }, chromeButtons(), h('button', { class: 'btn2 sm', type: 'button', onClick: async () => { await sb.auth.signOut(); S.session = null; S.profile = null; location.hash = ''; render(); } }, t('logout')))),
+    h('div', { class: 'layout' },
+      h('nav', { class: 'side', 'aria-label': 'menu' },
+        navItems.map(([r, label]) => h('button', { class: 'nav-btn' + (S.route === r ? ' active' : ''), type: 'button', 'aria-current': S.route === r ? 'page' : null, onClick: () => go(r) }, label)),
+        soonNav.map((label) => h('button', { class: 'nav-btn', type: 'button', disabled: true }, label, h('span', { class: 'chip off' }, t('soon'))))),
+      h('main', null, content)));
+}
+
+async function render() {
+  applyChrome();
+  if (!S.session || !S.profile) { mount(viewLogin()); return; }
+  const views = { home: viewHome, employees: viewEmployees, employee: viewEmployee, import: viewImport, users: viewUsers, settings: viewSettings, account: viewAccount };
+  let fn = views[S.route] || viewHome;
+  if (!isAdmin() && ['import', 'users', 'settings'].includes(S.route)) fn = viewHome;
+  const holder = h('div', { style: 'display:flex;flex-direction:column;gap:18px' }, h('div', { class: 'muted' }, t('loading')));
+  mount(shell(holder));
+  try { const node = await fn(); holder.replaceChildren(node); } catch (e) { holder.replaceChildren(h('div', { class: 'box err' }, t('errGeneric') + (e.message || e))); console.error(e); }
+}
+
+/* ====================== الرئيسية ====================== */
+async function viewHome() {
+  const [emps, types, periods] = await Promise.all([
+    q(sb.from('employees').select('id,primary_branch_id,status')),
+    q(sb.from('event_types').select('id,is_active')),
+    q(sb.from('periods').select('month,is_open'))
+  ]);
+  const active = emps.filter((e) => e.status === 'active');
+  const openM = periods.filter((p) => p.is_open).map((p) => p.month.slice(0, 7));
+  const kpi = (label, value, sub) => h('div', { class: 'card' }, h('div', { class: 'muted' }, label), h('div', { style: 'font-size:30px;font-weight:700;margin-top:6px' }, value), sub ? h('div', { class: 'muted' }, sub) : null);
+  const visibleBranches = S.branches.filter((b) => isAdmin() || b.id === S.profile.branch_id);
+  return h('div', { style: 'display:flex;flex-direction:column;gap:18px' },
+    h('h1', null, t('nHome')),
+    h('div', { class: 'grid' },
+      kpi(t('hActive'), active.length),
+      isAdmin() ? kpi(t('hBranches'), S.branches.filter((b) => b.is_active).length) : null,
+      kpi(t('hTypes'), types.filter((x) => x.is_active).length),
+      kpi(t('hOpen'), openM.length, openM.join(' · '))),
+    h('div', { class: 'card' }, h('h2', null, t('hByBranch')),
+      h('div', { class: 'grid' }, visibleBranches.map((b) => h('div', { style: 'border:1px solid var(--border);border-radius:10px;padding:14px' },
+        h('div', { style: 'font-weight:600' }, bName(b), b.is_active ? '' : ' ', b.is_active ? null : chip(t('sClosedTxt'), 'off')),
+        h('div', { class: 'muted' }, active.filter((e) => e.primary_branch_id === b.id).length + ' ' + t('stActive')))))),
+    isAdmin() ? h('div', { class: 'card' }, h('h2', null, t('hNext')), h('ol', { style: 'margin:0;padding-inline-start:20px;line-height:2' }, h('li', null, t('hStep1')), h('li', null, t('hStep2')), h('li', null, t('hStep3')), h('li', null, t('hStep4')))) : h('div', { class: 'box ok' }, t('mgrNote')));
+}
+
+/* ====================== الموظفين ====================== */
+async function viewEmployees() {
+  const emps = (await q(sb.from('employees').select('id,code,full_name,primary_branch_id,job_title,hire_date,status'))).sort((a, b) => cmpCode(a.code, b.code));
+  const f = S.cache.empFilter || (S.cache.empFilter = { text: '', branch: '', status: 'active' });
+  const tbody = h('tbody');
+  const countEl = h('span', { class: 'muted' });
+  const draw = () => {
+    const txt = f.text.trim().toLowerCase();
+    const rows = emps.filter((e) => (!txt || e.full_name.toLowerCase().includes(txt) || String(e.code).toLowerCase().includes(txt)) && (!f.branch || String(e.primary_branch_id) === f.branch) && (f.status === 'all' || e.status === f.status));
+    countEl.textContent = t('count') + ': ' + rows.length;
+    tbody.replaceChildren(...(rows.length ? rows.map((e) => h('tr', { class: 'click', tabindex: '0', onClick: () => go('employee', e.id), onKeydown: (ev) => { if (ev.key === 'Enter') go('employee', e.id); } },
+      h('td', null, e.code), h('td', { style: 'font-weight:600' }, e.full_name), h('td', null, bName(S.branches.find((b) => b.id === e.primary_branch_id))), h('td', null, e.job_title), h('td', null, fmtDate(e.hire_date)),
+      h('td', null, e.status === 'active' ? chip(t('stActive'), 'on') : chip(t('stTerm'), 'off')))) : [h('tr', null, h('td', { colspan: '6', class: 'muted', style: 'text-align:center;padding:24px' }, t('noRows')))]));
+  };
+  const search = inp({ type: 'search', placeholder: t('search'), value: f.text, 'aria-label': t('search'), onInput: (e) => { f.text = e.target.value; draw(); } });
+  const brSel = sel([['', t('allBranches')], ...S.branches.filter((b) => isAdmin() || b.id === S.profile.branch_id).map((b) => [b.id, bName(b)])], f.branch, { 'aria-label': t('cBranch'), onChange: (e) => { f.branch = e.target.value; draw(); } });
+  const stPills = h('div', { class: 'pills' });
+  const drawPills = () => stPills.replaceChildren(...[['active', t('stActive')], ['terminated', t('stTerm')], ['all', t('stAll')]].map(([v, l]) => h('button', { type: 'button', class: 'pill' + (f.status === v ? ' on' : ''), 'aria-pressed': f.status === v ? 'true' : 'false', onClick: () => { f.status = v; drawPills(); draw(); } }, l)));
+  drawPills(); draw();
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+    h('div', { class: 'between' }, h('h1', null, t('nEmployees')), isAdmin() ? h('button', { class: 'btn', type: 'button', onClick: () => go('employee', 'new') }, t('newEmp')) : null),
+    h('div', { class: 'row' }, h('div', { style: 'flex:2 1 240px' }, search), h('div', { style: 'flex:1 1 180px' }, brSel), stPills, countEl),
+    h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:720px' },
+      h('thead', null, h('tr', null, h('th', null, t('cCode')), h('th', null, t('cName')), h('th', null, t('cBranch')), h('th', null, t('cJob')), h('th', null, t('cHire')), h('th', null, t('cStatus')))), tbody)));
+}
+
+async function viewEmployee() {
+  const isNew = S.param === 'new';
+  if (isNew && !isAdmin()) return viewEmployees();
+  const id = isNew ? null : Number(S.param);
+  const [emp, allEmps, depts, extras, salaryRow, transfers, periods] = await Promise.all([
+    isNew ? null : q(sb.from('employees').select('*').eq('id', id).maybeSingle()),
+    q(sb.from('employees').select('id,code,full_name,status')),
+    q(sb.from('departments').select('*').order('name')),
+    isNew ? [] : q(sb.from('employee_branches').select('branch_id').eq('employee_id', id)),
+    isNew || !isAdmin() ? null : q(sb.from('employee_salary').select('salary').eq('employee_id', id).maybeSingle()),
+    isNew ? [] : q(sb.from('employee_transfers').select('*').eq('employee_id', id).order('effective_date', { ascending: false })),
+    isNew ? [] : q(sb.from('employment_periods').select('*').eq('employee_id', id).order('start_date', { ascending: false }))
+  ]);
+  if (!isNew && !emp) return h('div', { class: 'box err' }, t('noRows'));
+  const e = emp || { code: '', full_name: '', primary_branch_id: S.branches.find((b) => b.is_active)?.id ?? '', hire_date: today(), job_title: '', status: 'active' };
+  const ro = !isAdmin();
+  const F = {};
+  const mk = (key, attrs = {}) => (F[key] = inp(Object.assign({ value: e[key] ?? '', disabled: ro }, attrs)));
+  mk('code', { required: true }); mk('full_name', { required: true }); mk('hire_date', { type: 'date', required: true }); mk('job_title', { required: true });
+  mk('national_id'); mk('phone', { type: 'tel' }); mk('birth_date', { type: 'date' }); mk('fingerprint_code');
+  F.address = h('textarea', { class: 'inp', rows: '2', disabled: ro }, e.address || ''); F.notes = h('textarea', { class: 'inp', rows: '2', disabled: ro }, e.notes || '');
+  F.primary_branch_id = sel(S.branches.filter((b) => b.is_active || b.id === e.primary_branch_id).map((b) => [b.id, bName(b)]), e.primary_branch_id, { disabled: ro });
+  const deptOpts = () => [['', t('none')], ...depts.filter((d) => String(d.branch_id) === String(F.primary_branch_id.value) && (d.is_active || d.id === e.department_id)).map((d) => [d.id, nm(d)])];
+  F.department_id = sel(deptOpts(), e.department_id, { disabled: ro });
+  F.manager_id = sel([['', t('none')], ...allEmps.filter((x) => x.id !== id && x.status === 'active').sort((a, b) => cmpCode(a.code, b.code)).map((x) => [x.id, x.full_name + ' (' + x.code + ')'])], e.manager_id, { disabled: ro });
+  const salary = isAdmin() ? inp({ type: 'number', min: '0', step: '0.01', value: salaryRow ? salaryRow.salary : '' }) : null;
+  const extraSet = new Set(extras.map((x) => x.branch_id));
+  const extraBox = h('div', { class: 'row' }, S.branches.filter((b) => b.is_active || extraSet.has(b.id)).map((b) => h('label', { class: 'check' }, h('input', { type: 'checkbox', value: b.id, checked: extraSet.has(b.id), disabled: ro }), bName(b))));
+  const transferDate = inp({ type: 'date', value: today() });
+  const transferWrap = h('div', { style: 'display:none;grid-column:1/-1' }, h('div', { class: 'box warn', style: 'margin-bottom:8px' }, t('transferNote')), field(t('fTransferDate'), transferDate));
+  F.primary_branch_id.addEventListener('change', () => { F.department_id.replaceChildren(...deptOpts().map(([v, l]) => h('option', { value: v }, l))); transferWrap.style.display = !isNew && String(F.primary_branch_id.value) !== String(e.primary_branch_id) ? '' : 'none'; });
+
+  const save = async (btn) => {
+    const val = (k) => (F[k].value ?? '').toString().trim();
+    if (!val('code') || !val('full_name') || !val('hire_date') || !val('job_title') || !F.primary_branch_id.value) { toast(t('fieldsMissing'), 'err'); return; }
+    btn.disabled = true;
+    try {
+      const row = { code: val('code'), full_name: val('full_name'), primary_branch_id: Number(F.primary_branch_id.value), hire_date: val('hire_date'), job_title: val('job_title'),
+        department_id: nn(F.department_id.value) && Number(F.department_id.value), manager_id: nn(F.manager_id.value) && Number(F.manager_id.value),
+        national_id: nn(val('national_id')), phone: nn(val('phone')), birth_date: nn(val('birth_date')), address: nn(val('address')), fingerprint_code: nn(val('fingerprint_code')), notes: nn(val('notes')) };
+      let empId = id;
+      if (isNew) {
+        const ins = await q(sb.from('employees').insert(row).select('id').single()); empId = ins.id;
+        await q(sb.from('employment_periods').insert({ employee_id: empId, start_date: row.hire_date }));
+      } else {
+        if (row.primary_branch_id !== e.primary_branch_id) await q(sb.from('employee_transfers').insert({ employee_id: empId, from_branch_id: e.primary_branch_id, to_branch_id: row.primary_branch_id, effective_date: transferDate.value || today() }));
+        await q(sb.from('employees').update(row).eq('id', empId));
+      }
+      const sv = salary.value.trim();
+      if (sv !== '') await q(sb.from('employee_salary').upsert({ employee_id: empId, salary: Number(sv) }));
+      else if (salaryRow) await q(sb.from('employee_salary').delete().eq('employee_id', empId));
+      const want = new Set([...extraBox.querySelectorAll('input:checked')].map((c) => Number(c.value)).filter((b) => b !== row.primary_branch_id));
+      const del = [...extraSet].filter((b) => !want.has(b)); const add = [...want].filter((b) => !extraSet.has(b));
+      if (del.length) await q(sb.from('employee_branches').delete().eq('employee_id', empId).in('branch_id', del));
+      if (add.length) await q(sb.from('employee_branches').insert(add.map((b) => ({ employee_id: empId, branch_id: b }))));
+      toast(t('saved')); go('employee', empId);
+    } catch (ex) { fail(ex); btn.disabled = false; }
+  };
+
+  // الحالة وفترات العمل
+  const statusCard = isNew ? null : (() => {
+    const box = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
+    const list = h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, h('th', null, t('from')), h('th', null, t('to')), h('th', null, t('endReason')), h('th', null, t('endNotes')))),
+      h('tbody', null, periods.map((p) => h('tr', null, h('td', null, fmtDate(p.start_date)), h('td', null, p.end_date ? fmtDate(p.end_date) : t('now')), h('td', null, p.end_reason || '—'), h('td', null, p.notes || '—'))))));
+    let action = null;
+    if (isAdmin() && e.status === 'active') {
+      const d = inp({ type: 'date', value: today() }), r = inp({ type: 'text' }), n = inp({ type: 'text' });
+      const form = h('div', { class: 'grid', style: 'display:none' }, field(t('endDate'), d, { req: true }), field(t('endReason'), r, { req: true }), field(t('endNotes'), n),
+        h('div', { style: 'align-self:end' }, h('button', { class: 'btnd', type: 'button', onClick: async (ev) => {
+          if (!d.value || !r.value.trim()) { toast(t('fieldsMissing'), 'err'); return; }
+          ev.target.disabled = true;
+          try {
+            const open = periods.find((p) => !p.end_date);
+            if (open) await q(sb.from('employment_periods').update({ end_date: d.value, end_reason: r.value.trim(), notes: nn(n.value.trim()) }).eq('id', open.id));
+            else await q(sb.from('employment_periods').insert({ employee_id: id, start_date: e.hire_date, end_date: d.value, end_reason: r.value.trim(), notes: nn(n.value.trim()) }));
+            await q(sb.from('employees').update({ status: 'terminated' }).eq('id', id));
+            toast(t('termDone')); render();
+          } catch (ex) { fail(ex); ev.target.disabled = false; }
+        } }, t('confirmTerm'))));
+      action = h('div', null, h('button', { class: 'btnd', type: 'button', onClick: () => { form.style.display = ''; } }, t('terminate')), form);
+    } else if (isAdmin() && e.status === 'terminated') {
+      const d = inp({ type: 'date', value: today() });
+      action = h('div', { class: 'row', style: 'align-items:end' }, h('div', { style: 'min-width:220px' }, field(t('rehireDate'), d)), h('button', { class: 'btn', type: 'button', onClick: async (ev) => {
+        ev.target.disabled = true;
+        try { await q(sb.from('employment_periods').insert({ employee_id: id, start_date: d.value || today() })); await q(sb.from('employees').update({ status: 'active' }).eq('id', id)); toast(t('rehireDone')); render(); } catch (ex) { fail(ex); ev.target.disabled = false; }
+      } }, t('rehire')));
+    }
+    box.append(h('div', { class: 'row' }, e.status === 'active' ? chip(t('stActive'), 'on') : chip(t('stTerm'), 'off')), h('h2', { style: 'margin:0' }, t('periods')), list, action || '');
+    return h('div', { class: 'card' }, h('h2', null, t('sec3')), box);
+  })();
+  const transferCard = isNew ? null : h('div', { class: 'card' }, h('h2', null, t('sec4')), transfers.length ? h('ul', { style: 'margin:0;padding-inline-start:18px;line-height:1.9' }, transfers.map((x) => h('li', null, fmtDate(x.effective_date) + ': ' + bName(S.branches.find((b) => b.id === x.from_branch_id)) + (L() ? ' → ' : ' ← ') + bName(S.branches.find((b) => b.id === x.to_branch_id))))) : h('div', { class: 'muted' }, t('noTransfers')));
+  const saveBtn = isAdmin() ? h('button', { class: 'btn', type: 'button', onClick: (ev) => save(ev.currentTarget) }, t('save')) : null;
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+    h('div', { class: 'between' }, h('div', null, h('h1', null, isNew ? t('empNew') : e.full_name), isNew ? null : h('div', { class: 'muted' }, t('cCode') + ' ' + e.code)),
+      h('div', { class: 'row' }, h('button', { class: 'btn2', type: 'button', onClick: () => go('employees') }, t('back')), saveBtn)),
+    ro ? h('div', { class: 'box ok' }, t('mgrNote')) : null,
+    h('div', { class: 'card' }, h('h2', null, t('sec1')), h('div', { class: 'grid' },
+      field(t('fCode'), F.code, { req: true }), field(t('fName'), F.full_name, { req: true }), field(t('fBranch'), F.primary_branch_id, { req: true }),
+      field(t('fHire'), F.hire_date, { req: true }), field(t('fJob'), F.job_title, { req: true }), field(t('fDept'), F.department_id), field(t('fMgr'), F.manager_id), transferWrap)),
+    h('div', { class: 'card' }, h('h2', null, t('sec2')), h('div', { class: 'grid' },
+      field(t('fNid'), F.national_id), field(t('fPhone'), F.phone), field(t('fBirth'), F.birth_date), field(t('fFinger'), F.fingerprint_code),
+      salary ? field(t('fSalary'), salary, { note: t('fSalaryNote') }) : null,
+      field(t('fAddr'), F.address, { full: true }), field(t('fNotes'), F.notes, { full: true }),
+      h('div', { style: 'grid-column:1/-1' }, h('span', { class: 'lbl' }, t('fExtra')), extraBox))),
+    statusCard, transferCard,
+    saveBtn ? h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onClick: (ev) => save(ev.currentTarget) }, t('save'))) : null);
+}
+
+/* ====================== الاستيراد ====================== */
+const IMP_COLS = [
+  ['code', 'كود الموظف', 'Code', true], ['full_name', 'الاسم بالكامل', 'Full name', true], ['branch', 'الفرع', 'Branch', true], ['hire_date', 'تاريخ التعيين', 'Hire date', true],
+  ['job_title', 'المسمى الوظيفي', 'Job title', true], ['national_id', 'الرقم القومي', 'National ID'], ['phone', 'الموبايل', 'Mobile'], ['birth_date', 'تاريخ الميلاد', 'Birth date'],
+  ['address', 'العنوان', 'Address'], ['fingerprint_code', 'كود البصمة', 'Fingerprint code'], ['salary', 'المرتب', 'Salary'], ['notes', 'ملاحظات', 'Notes']
+];
+function parseDate(v) {
+  if (v == null || v === '') return { ok: true, v: null };
+  if (v instanceof Date && !isNaN(v)) return { ok: true, v: v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0') };
+  if (typeof v === 'number') { const d = XLSX.SSF.parse_date_code(v); if (d) return { ok: true, v: d.y + '-' + String(d.m).padStart(2, '0') + '-' + String(d.d).padStart(2, '0') }; }
+  const s = String(v).trim().replace(/[٠-٩]/g, (c) => '٠١٢٣٤٥٦٧٨٩'.indexOf(c));
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) return { ok: true, v: m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0') };
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (m) return { ok: true, v: m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') };
+  return { ok: false };
+}
+function downloadTemplate() {
+  const header = IMP_COLS.map((c) => (L() ? c[2] : c[1]));
+  const ex = [L() ? 'EXAMPLE-1' : 'مثال-1', L() ? 'Example Name' : 'اسم تجريبي (امسح السطر ده)', bName(S.branches[0]), today(), L() ? 'Pharmacist' : 'صيدلي', '', '', '', '', '', '', ''];
+  const ws = XLSX.utils.aoa_to_sheet([header, ex]);
+  ws['!cols'] = header.map((x, i) => ({ wch: i === 1 ? 30 : 16 }));
+  if (!L()) ws['!views'] = [{ RTL: true }];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, L() ? 'Employees' : 'الموظفين');
+  if (!L()) wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.writeFile(wb, L() ? 'employees-template.xlsx' : 'شيت-الموظفين.xlsx');
+}
+async function viewImport() {
+  const existing = await q(sb.from('employees').select('id,code,primary_branch_id'));
+  const byCode = new Map(existing.map((e) => [String(e.code).trim().toLowerCase(), e]));
+  const result = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
+  const fileInp = h('input', { type: 'file', accept: '.xlsx,.xls,.csv', class: 'inp', onChange: async (ev) => {
+    const file = ev.target.files[0]; if (!file) return;
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: true });
+      result.replaceChildren(previewImport(rows, byCode));
+    } catch (ex) { fail(ex); }
+  } });
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+    h('h1', null, t('impTitle')),
+    h('div', { class: 'card', style: 'display:flex;flex-direction:column;gap:12px' },
+      h('div', null, t('impStep1')), h('div', null, h('button', { class: 'btn2', type: 'button', onClick: downloadTemplate }, t('impTemplate'))),
+      h('div', { class: 'muted' }, t('impReq')),
+      h('div', null, t('impStep2')), field(t('impPick'), fileInp), h('div', { class: 'muted' }, t('impNote'))),
+    result);
+}
+function previewImport(rawRows, byCode) {
+  const norm = (s) => String(s).trim().toLowerCase();
+  const keyOf = {}; IMP_COLS.forEach((c) => { keyOf[norm(c[1])] = c[0]; keyOf[norm(c[2])] = c[0]; keyOf[c[0]] = c[0]; });
+  const brMap = new Map(); S.branches.forEach((b) => { brMap.set(norm(b.name), b); if (b.name_en) brMap.set(norm(b.name_en), b); });
+  const seen = new Map();
+  const items = rawRows.map((raw, idx) => {
+    const r = {}; for (const k in raw) { const key = keyOf[norm(k)]; if (key) r[key] = raw[k]; }
+    const errs = [], warns = [];
+    const code = String(r.code ?? '').trim(); const name = String(r.full_name ?? '').trim(); const job = String(r.job_title ?? '').trim();
+    if (!code && !name) return null;
+    if (!code) errs.push(t('eNoCode'));
+    if (code) { const k = code.toLowerCase(); if (seen.has(k)) errs.push(t('eDupCode')); seen.set(k, true); }
+    if (!name) errs.push(t('eNoName'));
+    const br = brMap.get(norm(r.branch ?? '')); if (!br) errs.push(t('eBranch'));
+    const hd = parseDate(r.hire_date); if (!hd.ok || !hd.v) errs.push(t('eHire'));
+    if (!job) errs.push(t('eJob'));
+    const bd = parseDate(r.birth_date); if (!bd.ok) errs.push(t('eDate'));
+    let sal = String(r.salary ?? '').trim(); if (sal !== '' && isNaN(Number(sal))) errs.push(t('eSalary'));
+    const ex = code ? byCode.get(code.toLowerCase()) : null;
+    let branchId = br ? br.id : null;
+    if (ex && br && ex.primary_branch_id !== br.id) { warns.push(t('wBranchKept')); branchId = ex.primary_branch_id; }
+    const s = (k) => { const v = String(r[k] ?? '').trim(); return v === '' ? null : v; };
+    return { line: idx + 2, code, name, branch: br ? bName(br) : String(r.branch ?? ''), errs, warns, isNew: !ex,
+      row: { code, full_name: name, primary_branch_id: branchId, hire_date: hd.v, job_title: job, national_id: s('national_id'), phone: s('phone'), birth_date: bd.v ?? null, address: s('address'), fingerprint_code: s('fingerprint_code'), notes: s('notes') },
+      salary: sal === '' ? null : Number(sal) };
+  }).filter(Boolean);
+  const good = items.filter((x) => !x.errs.length);
+  const goBtn = h('button', { class: 'btn', type: 'button', disabled: !good.length, onClick: async (ev) => {
+    ev.target.disabled = true;
+    try {
+      const saved = await q(sb.from('employees').upsert(good.map((x) => x.row), { onConflict: 'code' }).select('id,code,hire_date'));
+      const idOf = new Map(saved.map((s) => [String(s.code).toLowerCase(), s]));
+      const sal = good.filter((x) => x.salary != null).map((x) => ({ employee_id: idOf.get(x.code.toLowerCase()).id, salary: x.salary }));
+      if (sal.length) await q(sb.from('employee_salary').upsert(sal));
+      const ids = saved.map((s) => s.id);
+      const havePeriods = new Set((await q(sb.from('employment_periods').select('employee_id').in('employee_id', ids))).map((p) => p.employee_id));
+      const newPeriods = saved.filter((s) => !havePeriods.has(s.id)).map((s) => ({ employee_id: s.id, start_date: s.hire_date }));
+      if (newPeriods.length) await q(sb.from('employment_periods').insert(newPeriods));
+      toast(t('impDone', { n: saved.length })); go('employees');
+    } catch (ex) { fail(ex); ev.target.disabled = false; }
+  } }, t('impGo') + ' (' + good.length + ')');
+  return h('div', { style: 'display:flex;flex-direction:column;gap:12px' },
+    h('div', { class: 'row' }, chip(items.length + ' ' + t('impRows'), 'off'), chip(t('impNew') + ': ' + good.filter((x) => x.isNew).length, 'on'), chip(t('impUpd') + ': ' + good.filter((x) => !x.isNew).length, 'warn'), chip(t('impBad') + ': ' + (items.length - good.length), 'err')),
+    h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:720px' },
+      h('thead', null, h('tr', null, h('th', null, t('cRow')), h('th', null, t('cCode')), h('th', null, t('cName')), h('th', null, t('cBranch')), h('th', null, t('cResult')))),
+      h('tbody', null, items.map((x) => h('tr', null, h('td', null, x.line), h('td', null, x.code || '—'), h('td', null, x.name || '—'), h('td', null, x.branch || '—'),
+        h('td', null, x.errs.length ? chip(x.errs.join('، '), 'err') : chip(x.isNew ? t('impNew') : t('impUpd'), x.isNew ? 'on' : 'warn'), x.warns.length ? h('div', { class: 'muted' }, x.warns.join('، ')) : null)))))),
+    h('div', null, t('impStep3')), h('div', null, goBtn));
+}
+
+/* ====================== المستخدمين ====================== */
+async function viewUsers() {
+  const users = await q(sb.rpc('admin_users'));
+  const brOpts = S.branches.map((b) => [b.id, bName(b)]);
+  const email = inp({ type: 'email' }), uname = inp({ type: 'text' }), full = inp({ type: 'text' });
+  const role = sel([['manager', t('manager')], ['admin', t('admin')]], 'manager'); const br = sel(brOpts, brOpts[0] && brOpts[0][0]);
+  const link = h('button', { class: 'btn', type: 'button', onClick: async (ev) => {
+    if (!email.value.trim() || !uname.value.trim() || !full.value.trim()) { toast(t('fieldsMissing'), 'err'); return; }
+    ev.target.disabled = true;
+    try { await q(sb.rpc('admin_link_user', { p_email: email.value.trim(), p_username: uname.value.trim(), p_full_name: full.value.trim(), p_role: role.value, p_branch: role.value === 'admin' ? null : Number(br.value) })); toast(t('uLinked')); render(); }
+    catch (ex) { fail(ex); ev.target.disabled = false; }
+  } }, t('uLink'));
+  const upd = async (id, patch) => { try { await q(sb.from('profiles').update(patch).eq('id', id)); toast(t('saved')); render(); } catch (ex) { fail(ex); } };
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+    h('h1', null, t('uTitle')),
+    h('div', { class: 'box warn' }, t('uHow')),
+    h('div', { class: 'card' }, h('h2', null, t('uLink')), h('div', { class: 'grid' }, field(t('uEmail'), email, { req: true }), field(t('uUsername'), uname, { req: true }), field(t('uFull'), full, { req: true }), field(t('uRole'), role), field(t('uBranch'), br), h('div', { style: 'align-self:end' }, link))),
+    h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:820px' },
+      h('thead', null, h('tr', null, h('th', null, t('uFull')), h('th', null, t('uUsername')), h('th', null, t('uEmail')), h('th', null, t('uRole')), h('th', null, t('uBranch')), h('th', null, t('uLast')), h('th', null, t('cStatus')), h('th', null, ''))),
+      h('tbody', null, users.map((u) => {
+        const me = u.id === S.profile.id;
+        const bSel = u.role === 'manager' ? sel(brOpts, u.branch_id, { 'aria-label': t('uBranch'), class: 'inp', style: 'min-width:140px', onChange: (e) => upd(u.id, { branch_id: Number(e.target.value) }) }) : '—';
+        return h('tr', null, h('td', { style: 'font-weight:600' }, u.full_name), h('td', null, u.username), h('td', { dir: 'ltr', style: 'text-align:start' }, u.email), h('td', null, u.role === 'admin' ? t('admin') : t('manager')), h('td', null, bSel),
+          h('td', null, u.last_sign_in_at ? fmtDate(u.last_sign_in_at) : t('never')), h('td', null, u.is_active ? chip(t('uActive'), 'on') : chip(t('uOff'), 'off')),
+          h('td', null, me ? '' : h('button', { class: u.is_active ? 'btnd sm' : 'btn2 sm', type: 'button', onClick: () => upd(u.id, { is_active: !u.is_active }) }, u.is_active ? t('uDisable') : t('uEnable'))));
+      })))));
+}
+
+/* ====================== الإعدادات ====================== */
+async function viewSettings() {
+  const [depts, periods, types, details, settings] = await Promise.all([
+    q(sb.from('departments').select('*').order('name')), q(sb.from('periods').select('*').order('month', { ascending: false })),
+    q(sb.from('event_types').select('*').order('sort')), q(sb.from('event_details').select('*').order('sort')), q(sb.from('settings').select('*'))]);
+  const wrap = h('div', { style: 'display:flex;flex-direction:column;gap:16px' }, h('h1', null, t('sTitle')));
+  const run = async (p, msg) => { try { await q(p); await loadBranches(); toast(msg || t('saved')); render(); } catch (ex) { fail(ex); } };
+
+  // الفروع
+  const bAr = inp({ type: 'text' }), bEn = inp({ type: 'text', dir: 'ltr' });
+  wrap.append(h('div', { class: 'card' }, h('h2', null, t('sBranches')),
+    h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, h('th', null, t('sNameAr')), h('th', null, t('sNameEn')), h('th', null, t('cStatus')), h('th', null, ''))),
+      h('tbody', null, S.branches.map((b) => {
+        const ar = inp({ value: b.name, 'aria-label': t('sNameAr') }), en = inp({ value: b.name_en || '', dir: 'ltr', 'aria-label': t('sNameEn') });
+        return h('tr', null, h('td', null, ar), h('td', null, en), h('td', null, b.is_active ? chip(t('sOpenTxt'), 'on') : chip(t('sClosedTxt'), 'off')),
+          h('td', null, h('div', { class: 'row', style: 'flex-wrap:nowrap' },
+            h('button', { class: 'btn2 sm', type: 'button', onClick: () => run(sb.from('branches').update({ name: ar.value.trim(), name_en: nn(en.value.trim()) }).eq('id', b.id)) }, t('save')),
+            h('button', { class: 'btn2 sm', type: 'button', onClick: () => run(sb.from('branches').update({ is_active: !b.is_active }).eq('id', b.id)) }, b.is_active ? t('sClose') : t('sOpen')),
+            h('button', { class: 'btnd sm', type: 'button', onClick: async () => { if (!confirm(t('confirmDel'))) return; const r = await sb.from('branches').delete().eq('id', b.id); if (r.error) toast(r.error.code === '23503' ? t('sDelBlocked') : t('errGeneric') + r.error.message, 'err'); else { toast(t('saved')); await loadBranches(); render(); } } }, t('sDelete')))));
+      })))),
+    h('div', { class: 'row', style: 'margin-top:12px;align-items:end' }, h('div', { style: 'flex:1 1 200px' }, field(t('sNameAr'), bAr)), h('div', { style: 'flex:1 1 200px' }, field(t('sNameEn'), bEn)),
+      h('button', { class: 'btn', type: 'button', onClick: async () => { if (!bAr.value.trim()) { toast(t('fieldsMissing'), 'err'); return; } try { await q(sb.from('branches').insert({ name: bAr.value.trim(), name_en: nn(bEn.value.trim()) })); await loadBranches(); toast(t('saved')); render(); } catch (ex) { fail(ex); } } }, t('sAddBranch')))));
+  const origRun = run;
+
+  // الأقسام
+  const dBr = sel(S.branches.map((b) => [b.id, bName(b)]), S.branches[0] && S.branches[0].id), dAr = inp({ type: 'text' }), dEn = inp({ type: 'text', dir: 'ltr' });
+  wrap.append(h('div', { class: 'card' }, h('h2', null, t('sDepts')),
+    depts.length ? h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, h('th', null, t('cBranch')), h('th', null, t('sNameAr')), h('th', null, t('sNameEn')), h('th', null, t('cStatus')), h('th', null, ''))),
+      h('tbody', null, depts.map((d) => h('tr', null, h('td', null, bName(S.branches.find((b) => b.id === d.branch_id))), h('td', null, d.name), h('td', null, d.name_en || '—'), h('td', null, d.is_active ? chip(t('sOpenTxt'), 'on') : chip(t('sClosedTxt'), 'off')),
+        h('td', null, h('button', { class: 'btn2 sm', type: 'button', onClick: () => origRun(sb.from('departments').update({ is_active: !d.is_active }).eq('id', d.id)) }, d.is_active ? t('sClose') : t('sOpen')))))))) : null,
+    h('div', { class: 'row', style: 'margin-top:12px;align-items:end' }, h('div', { style: 'flex:1 1 160px' }, field(t('cBranch'), dBr)), h('div', { style: 'flex:1 1 180px' }, field(t('sNameAr'), dAr)), h('div', { style: 'flex:1 1 180px' }, field(t('sNameEn'), dEn)),
+      h('button', { class: 'btn', type: 'button', onClick: () => { if (!dAr.value.trim()) { toast(t('fieldsMissing'), 'err'); return; } origRun(sb.from('departments').insert({ branch_id: Number(dBr.value), name: dAr.value.trim(), name_en: nn(dEn.value.trim()) })); } }, t('sAddDept')))));
+
+  // فترات التسجيل
+  const mInp = inp({ type: 'month', value: today().slice(0, 7) });
+  wrap.append(h('div', { class: 'card' }, h('h2', null, t('sPeriods')), h('div', { class: 'muted', style: 'margin-bottom:10px' }, t('sPeriodsNote')),
+    h('div', { class: 'pills' }, periods.map((p) => h('button', { type: 'button', class: 'pill' + (p.is_open ? ' on' : ''), 'aria-pressed': p.is_open ? 'true' : 'false', onClick: () => origRun(sb.from('periods').update({ is_open: !p.is_open }).eq('month', p.month)) }, p.month.slice(0, 7) + ': ' + (p.is_open ? t('sOpenTxt') : t('sClosedTxt'))))),
+    h('div', { class: 'row', style: 'margin-top:12px;align-items:end' }, h('div', { style: 'min-width:200px' }, field(t('sAddMonth'), mInp)),
+      h('button', { class: 'btn', type: 'button', onClick: () => { if (!mInp.value) return; origRun(sb.from('periods').upsert({ month: mInp.value + '-01', is_open: true })); } }, t('sAddMonth')))));
+
+  // أنواع الأحداث
+  const catL = { deduction: t('catDed'), entitlement: t('catEnt'), leave: t('catLeave'), permission: t('catPerm'), neutral: t('catNeu') };
+  const unitL = { hour: t('uHour'), day: t('uDay'), amount: t('uAmount') };
+  const editor = h('div');
+  const openEditor = (ty) => {
+    const x = ty || { name: '', name_en: '', category: 'deduction', unit: 'hour', needs_time: false, needs_range: false, attachment: 'none', balance_type: null, count_repeats: false, count_window: 'month', is_active: true, sort: (types.length + 1) };
+    const E = { name: inp({ value: x.name }), name_en: inp({ value: x.name_en || '', dir: 'ltr' }), sort: inp({ type: 'number', value: x.sort }),
+      category: sel(Object.entries(catL), x.category), unit: sel(Object.entries(unitL), x.unit),
+      attachment: sel([['none', t('attNone')], ['optional', t('attOpt')], ['required', t('attReq')]], x.attachment),
+      balance_type: sel([['', t('balNone')], ['annual', t('balAnnual')], ['casual', t('balCasual')]], x.balance_type || ''),
+      count_window: sel([['month', t('winMonth')], ['year', t('winYear')]], x.count_window) };
+    const C = { needs_time: h('input', { type: 'checkbox', checked: x.needs_time }), needs_range: h('input', { type: 'checkbox', checked: x.needs_range }), count_repeats: h('input', { type: 'checkbox', checked: x.count_repeats }), is_active: h('input', { type: 'checkbox', checked: x.is_active }) };
+    const dets = ty ? details.filter((d) => d.event_type_id === ty.id) : [];
+    const detRows = dets.map((d) => {
+      const dn = inp({ value: d.name, 'aria-label': t('sNameAr') }), de = inp({ value: d.name_en || '', dir: 'ltr', 'aria-label': t('sNameEn') }), dv = inp({ type: 'number', step: '0.5', value: d.default_value, style: 'max-width:110px', 'aria-label': t('sDefault') });
+      const du = sel([['', '—'], ...Object.entries(unitL)], d.unit || '', { 'aria-label': t('sUnitOverride'), style: 'max-width:130px' }); const da = h('input', { type: 'checkbox', checked: d.is_active, 'aria-label': t('active') });
+      return { d, tr: h('tr', null, h('td', null, dn), h('td', null, de), h('td', null, dv), h('td', null, du), h('td', null, da)), get: () => ({ name: dn.value.trim(), name_en: nn(de.value.trim()), default_value: Number(dv.value) || 0, unit: nn(du.value), is_active: da.checked }) };
+    });
+    const nd = { n: inp({ 'aria-label': t('sNameAr') }), e: inp({ dir: 'ltr', 'aria-label': t('sNameEn') }), v: inp({ type: 'number', step: '0.5', value: 0, style: 'max-width:110px', 'aria-label': t('sDefault') }) };
+    editor.replaceChildren(h('div', { class: 'card', style: 'border-color:var(--accent);display:flex;flex-direction:column;gap:14px' },
+      h('div', { class: 'between' }, h('h2', { style: 'margin:0' }, ty ? t('sEdit') + ': ' + nm(ty) : t('sAddType')), h('button', { class: 'btn2 sm', type: 'button', onClick: () => editor.replaceChildren() }, t('cancel'))),
+      h('div', { class: 'grid' }, field(t('sNameAr'), E.name, { req: true }), field(t('sNameEn'), E.name_en), field(t('cat'), E.category), field(t('unit'), E.unit), field(t('attach'), E.attachment), field(t('balance'), E.balance_type), field(t('countWin'), E.count_window), field(t('sort'), E.sort)),
+      h('div', { class: 'row' }, h('label', { class: 'check' }, C.needs_time, t('needsTime')), h('label', { class: 'check' }, C.needs_range, t('needsRange')), h('label', { class: 'check' }, C.count_repeats, t('countRep')), h('label', { class: 'check' }, C.is_active, t('active'))),
+      ty ? h('div', null, h('h2', null, t('sDetails')), h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, h('th', null, t('sNameAr')), h('th', null, t('sNameEn')), h('th', null, t('sDefault')), h('th', null, t('sUnitOverride')), h('th', null, t('active')))),
+        h('tbody', null, detRows.map((r) => r.tr), h('tr', null, h('td', null, nd.n), h('td', null, nd.e), h('td', null, nd.v), h('td', { colspan: '2' }, h('button', { class: 'btn2 sm', type: 'button', onClick: () => { if (!nd.n.value.trim()) return; origRun(sb.from('event_details').insert({ event_type_id: ty.id, name: nd.n.value.trim(), name_en: nn(nd.e.value.trim()), default_value: Number(nd.v.value) || 0, sort: dets.length + 1 })); } }, t('sAddDetail')))))))) : null,
+      h('div', null, h('button', { class: 'btn', type: 'button', onClick: async (ev) => {
+        if (!E.name.value.trim()) { toast(t('fieldsMissing'), 'err'); return; }
+        ev.target.disabled = true;
+        const row = { name: E.name.value.trim(), name_en: nn(E.name_en.value.trim()), category: E.category.value, unit: E.unit.value, attachment: E.attachment.value, balance_type: nn(E.balance_type.value), count_window: E.count_window.value, sort: Number(E.sort.value) || 0,
+          needs_time: C.needs_time.checked, needs_range: C.needs_range.checked, count_repeats: C.count_repeats.checked, is_active: C.is_active.checked };
+        try {
+          if (ty) { await q(sb.from('event_types').update(row).eq('id', ty.id)); for (const r of detRows) { const v = r.get(); await q(sb.from('event_details').update(v).eq('id', r.d.id)); } }
+          else await q(sb.from('event_types').insert(row));
+          toast(t('saved')); render();
+        } catch (ex) { fail(ex); ev.target.disabled = false; }
+      } }, t('save')))));
+    editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  wrap.append(h('div', { class: 'card', style: 'padding:0' },
+    h('div', { class: 'between', style: 'padding:20px 20px 0' }, h('h2', { style: 'margin:0' }, t('sTypes')), h('button', { class: 'btn2', type: 'button', onClick: () => openEditor(null) }, t('sAddType'))),
+    h('div', { class: 'scroll', style: 'margin-top:12px' }, h('table', { style: 'min-width:900px' },
+      h('thead', null, h('tr', null, h('th', null, t('sNameAr')), h('th', null, t('sNameEn')), h('th', null, t('cat')), h('th', null, t('unit')), h('th', null, t('sDetails')), h('th', null, t('cStatus')), h('th', null, ''))),
+      h('tbody', null, types.map((ty) => h('tr', null, h('td', { style: 'font-weight:600' }, ty.name), h('td', null, ty.name_en || '—'), h('td', null, catL[ty.category]), h('td', null, unitL[ty.unit]),
+        h('td', { class: 'muted' }, details.filter((d) => d.event_type_id === ty.id).map((d) => nm(d) + ' (' + Number(d.default_value) + ')').join(' · ')),
+        h('td', null, ty.is_active ? chip(t('active'), 'on') : chip(t('sClosedTxt'), 'off')),
+        h('td', null, h('button', { class: 'btn2 sm', type: 'button', onClick: () => openEditor(ty) }, t('sEdit'))))))))));
+  wrap.append(editor);
+
+  // الإعدادات العامة
+  const sv = (k) => { const r = settings.find((s) => s.key === k); return r && r.value != null ? r.value : ''; };
+  const G = { annual_leave_days: t('gAnnual'), casual_leave_days: t('gCasual'), leave_eligibility_months: t('gElig'), annual_monthly_cap: t('gCap'), attachments_keep_years: t('gKeep') };
+  const GI = {}; Object.keys(G).forEach((k) => (GI[k] = inp({ type: 'number', min: '0', step: '0.5', value: sv(k) })));
+  wrap.append(h('div', { class: 'card' }, h('h2', null, t('sGeneral')), h('div', { class: 'grid' }, Object.entries(G).map(([k, l]) => field(l, GI[k]))),
+    h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn', type: 'button', onClick: () => origRun(sb.from('settings').upsert(Object.keys(G).map((k) => ({ key: k, value: GI[k].value === '' ? null : Number(GI[k].value) })))) }, t('save')))));
+  return wrap;
+}
+
+/* ====================== حسابي ====================== */
+async function viewAccount() {
+  const p1 = inp({ type: 'password', autocomplete: 'new-password' }), p2 = inp({ type: 'password', autocomplete: 'new-password' });
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px;max-width:520px' }, h('h1', null, t('aTitle')),
+    h('div', { class: 'card', style: 'display:flex;flex-direction:column;gap:12px' },
+      h('div', null, h('div', { style: 'font-weight:700' }, S.profile.full_name), h('div', { class: 'muted', dir: 'ltr', style: 'text-align:start' }, S.session.user.email)),
+      field(t('aNewPass'), p1), field(t('aNewPass2'), p2),
+      h('div', null, h('button', { class: 'btn', type: 'button', onClick: async (ev) => {
+        if (p1.value.length < 8) { toast(t('aShort'), 'err'); return; }
+        if (p1.value !== p2.value) { toast(t('aMismatch'), 'err'); return; }
+        ev.target.disabled = true; const r = await sb.auth.updateUser({ password: p1.value }); ev.target.disabled = false;
+        if (r.error) fail(r.error); else { toast(t('aChanged')); p1.value = p2.value = ''; }
+      } }, t('aChange')))));
+}
+
+/* ====================== التشغيل ====================== */
+(async () => {
+  applyChrome();
+  const { data } = await sb.auth.getSession();
+  S.session = data.session;
+  if (S.session) await boot(); else render();
+  sb.auth.onAuthStateChange((ev, session) => { if (ev === 'SIGNED_OUT') { S.session = null; S.profile = null; render(); } else if (session) S.session = session; });
+})();
+</script>
+</body>
+</html>
