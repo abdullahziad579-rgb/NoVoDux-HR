@@ -259,9 +259,9 @@ function mount(node) { const app = document.getElementById('app'); app.replaceCh
 
 /* ====================== الإطار ====================== */
 function shell(content) {
-  const adminNav = [['home', t('nHome')], ['employees', t('nEmployees')], ['import', t('nImport')], ['users', t('nUsers')], ['settings', t('nSettings')]];
-  const mgrNav = [['home', t('nHome')], ['employees', t('nEmployees')]];
-  const soonNav = [t('nReg'), isAdmin() ? t('nReview') : null, isAdmin() ? t('nReports') : null].filter(Boolean);
+  const adminNav = [['home', t('nHome')], ['events', t('nReview'), S.pendingCount], ['register', t('nReg')], ['employees', t('nEmployees')], ['import', t('nImport')], ['users', t('nUsers')], ['settings', t('nSettings')]];
+  const mgrNav = [['home', t('nHome')], ['register', t('nReg')], ['events', t('nEvents'), S.pendingCount], ['employees', t('nEmployees')]];
+  const soonNav = [t('nReports')];
   const navItems = (isAdmin() ? adminNav : mgrNav).concat([['account', t('nAccount')]]);
   const myBranch = S.branches.find((b) => b.id === S.profile.branch_id);
   return h('div', null,
@@ -271,7 +271,7 @@ function shell(content) {
       h('div', { class: 'row' }, chromeButtons(), h('button', { class: 'btn2 sm', type: 'button', onClick: async () => { await sb.auth.signOut(); S.session = null; S.profile = null; location.hash = ''; render(); } }, t('logout')))),
     h('div', { class: 'layout' },
       h('nav', { class: 'side', 'aria-label': 'menu' },
-        navItems.map(([r, label]) => h('button', { class: 'nav-btn' + (S.route === r ? ' active' : ''), type: 'button', 'aria-current': S.route === r ? 'page' : null, onClick: () => go(r) }, label)),
+        navItems.map(([r, label, badge]) => h('button', { class: 'nav-btn' + (S.route === r ? ' active' : ''), type: 'button', 'aria-current': S.route === r ? 'page' : null, onClick: () => go(r) }, h('span', null, label), badge ? h('span', { class: 'chip', style: 'background:var(--danger);color:var(--surface)' }, badge) : null)),
         soonNav.map((label) => h('button', { class: 'nav-btn', type: 'button', disabled: true }, label, h('span', { class: 'chip off' }, t('soon'))))),
       h('main', null, content)));
 }
@@ -279,7 +279,8 @@ function shell(content) {
 async function render() {
   applyChrome();
   if (!S.session || !S.profile) { mount(viewLogin()); return; }
-  const views = { home: viewHome, employees: viewEmployees, employee: viewEmployee, import: viewImport, users: viewUsers, settings: viewSettings, account: viewAccount };
+  const views = { home: viewHome, employees: viewEmployees, employee: viewEmployee, import: viewImport, users: viewUsers, settings: viewSettings, account: viewAccount, register: viewRegister, events: viewEvents };
+  try { const c = await sb.from('events').select('id', { count: 'exact', head: true }).in('status', isAdmin() ? ['pending'] : ['clarify']); S.pendingCount = c.count || 0; } catch (e) { S.pendingCount = 0; }
   let fn = views[S.route] || viewHome;
   if (!isAdmin() && ['import', 'users', 'settings'].includes(S.route)) fn = viewHome;
   const holder = h('div', { style: 'display:flex;flex-direction:column;gap:18px' }, h('div', { class: 'muted' }, t('loading')));
@@ -298,9 +299,14 @@ async function viewHome() {
   const openM = periods.filter((p) => p.is_open).map((p) => p.month.slice(0, 7));
   const kpi = (label, value, sub) => h('div', { class: 'card' }, h('div', { class: 'muted' }, label), h('div', { style: 'font-size:30px;font-weight:700;margin-top:6px' }, value), sub ? h('div', { class: 'muted' }, sub) : null);
   const visibleBranches = S.branches.filter((b) => isAdmin() || b.id === S.profile.branch_id);
+  const evc = await q(sb.from('events').select('status').in('status', ['pending', 'clarify']));
   return h('div', { style: 'display:flex;flex-direction:column;gap:18px' },
-    h('h1', null, t('nHome')),
+    h('div', { class: 'between' }, h('h1', null, t('nHome')), h('div', { class: 'row' },
+      h('button', { class: 'btn', type: 'button', onClick: () => go('register') }, t('hRecord')),
+      h('button', { class: 'btn2', type: 'button', onClick: () => { S.cache.evf = Object.assign(S.cache.evf || {}, { status: isAdmin() ? 'pending' : 'clarify', month: '', branch: '', type: '', text: '' }); go('events'); } }, isAdmin() ? t('hOpenReview') : t('hMyEvents')))),
     h('div', { class: 'grid' },
+      kpi(t('hPending'), evc.filter((x) => x.status === 'pending').length),
+      kpi(t('hClarify'), evc.filter((x) => x.status === 'clarify').length),
       kpi(t('hActive'), active.length),
       isAdmin() ? kpi(t('hBranches'), S.branches.filter((b) => b.is_active).length) : null,
       kpi(t('hTypes'), types.filter((x) => x.is_active).length),
@@ -681,6 +687,326 @@ async function viewAccount() {
         ev.target.disabled = true; const r = await sb.auth.updateUser({ password: p1.value }); ev.target.disabled = false;
         if (r.error) fail(r.error); else { toast(t('aChanged')); p1.value = p2.value = ''; }
       } }, t('aChange')))));
+}
+
+/* ====================== المرحلة 3: تسجيل الأحداث والمراجعة ====================== */
+Object.assign(TX.ar, {
+  nEvents: 'أحداث فرعي', regTitle: 'تسجيل حدث', regEdit: 'تعديل حدث', fEmployee: 'الموظف', fEventType: 'نوع الحدث', fDetail: 'التفصيل', fDate: 'التاريخ', fFromDate: 'من تاريخ', fToDate: 'إلى تاريخ',
+  fFromTime: 'من الساعة', fToTime: 'إلى الساعة', fDuration: 'المدة (بتتحسب لوحدها)', fSugDed: 'الخصم المقترح', fSugEnt: 'المستحق المقترح', fSugLeave: 'عدد الأيام', fSugOther: 'القيمة المقترحة',
+  fSugNote: 'القيمة الافتراضية من الإعدادات، وتقدر تغيرها. القرار النهائي للأدمن.', fMgrNotes: 'ملاحظات', fAttach: 'مرفق (صورة)', attReqd: 'المرفق مطلوب للحدث ده.', attOptl: 'المرفق اختياري.', attShrink: 'الصورة بتتصغر لوحدها قبل الرفع.', attHas: 'فيه مرفق محفوظ. اختار صورة جديدة لو عايز تبدله.',
+  openMonths: 'الشهور المفتوحة للتسجيل: ', noneOpen: 'مفيش شهر مفتوح. الأدمن يفتحه من الإعدادات.', wClosed: 'الشهر ده مقفول للتسجيل.', wClosedAdmin: 'الشهر ده مقفول للمديرين، بس أنت كأدمن تقدر تسجل فيه.',
+  wDup: 'تنبيه: نفس الحدث اتسجل للموظف ده في نفس اليوم قبل كده. تقدر تكمل لو ده مقصود.', wRepeat: 'دي هتبقى المرة رقم {n} لـ "{name}" للموظف ده في {win}.', winMonthW: 'الشهر ده', winYearW: 'السنة دي',
+  wBalance: 'رصيد {name}: المستحق {ent} · المعتمد {used} · المعلق {pend} · المتبقي {rem} · بعد الطلب ده: {after}', wNoBalance: 'رصيد {name} للموظف ده مش متحدد في الإعدادات.', wElig: 'الموظف ده لسه ما كملش {m} شهور من تاريخ تعيينه ({d}).',
+  wTime: 'وقت النهاية لازم يبقى بعد وقت البداية.', wDates: 'تاريخ النهاية لازم يبقى بعد تاريخ البداية أو يساويه.', submitNew: 'تسجيل وإرسال للمراجعة', submitEdit: 'حفظ التعديل وإرساله للمراجعة', clearForm: 'مسح',
+  recOk: 'اتسجل الحدث وراح للمراجعة.', editOk: 'اتحفظ التعديل ورجع للمراجعة.', uploading: 'جاري رفع الصورة...', hourW: 'ساعة', minW: 'دقيقة', dayW: 'يوم', daysW: 'أيام', oneDay: 'يوم واحد', lockedEv: 'الحدث ده اتراجع خلاص ومينفعش يتعدل.',
+  revTitle: 'المراجعة والاعتماد', revSub: 'اكتب القرار النهائي واعتمد، أو حدد كذا طلب واعتمدهم مرة واحدة.', evTitle: 'أحداث فرعي', evSub: 'تقدر تتابع حالة اللي سجلته، وتعدل اللي لسه معلق أو محتاج توضيح.',
+  fsPending: 'معلق', fsClarify: 'يحتاج توضيح', fsApproved: 'معتمد', fsRejected: 'مرفوض', fsAll: 'الكل', fMonth: 'الشهر', allMonths: 'كل الشهور', allTypes: 'كل الأحداث',
+  cEvent: 'الحدث', cDate: 'التاريخ', cSug: 'مقترح المدير', cFinal: 'القرار النهائي', cNotes: 'ملاحظات', cAction: 'إجراء', cSel: 'تحديد',
+  approve: 'اعتماد', clarify: 'يحتاج توضيح', reject: 'رفض', rejReason: 'سبب الرفض (إلزامي)', confirmRej: 'تأكيد الرفض', clarifyAsk: 'اكتب للمدير المطلوب توضيحه (اختياري):', editFinal: 'تعديل القرار', editFinalAsk: 'القرار النهائي الجديد:',
+  bulk: 'اعتماد المحدد ({n})', bulkDone: 'اتعتمد {n} طلب.', approved: 'اتعتمد الطلب.', clarified: 'رجع للمدير يوضح.', rejected: 'اترفض الطلب.', delOk: 'اتحذف.', editBtn: 'تعديل', delBtn: 'حذف', viewAtt: 'المرفق',
+  repeatN: 'المرة رقم {n}', reasonP: 'السبب: ', noteP: 'ملاحظة الأدمن: ', byMgr: 'ملاحظة المدير: ', stLocked: 'مقفول', hPending: 'طلبات معلقة', hClarify: 'يحتاج توضيح', hOpenReview: 'افتح المراجعة', hRecord: 'سجّل حدث', hMyEvents: 'أحداث فرعي'
+});
+Object.assign(TX.en, {
+  nEvents: 'My branch events', regTitle: 'Record event', regEdit: 'Edit event', fEmployee: 'Employee', fEventType: 'Event type', fDetail: 'Detail', fDate: 'Date', fFromDate: 'From date', fToDate: 'To date',
+  fFromTime: 'From time', fToTime: 'To time', fDuration: 'Duration (calculated)', fSugDed: 'Suggested deduction', fSugEnt: 'Suggested entitlement', fSugLeave: 'Number of days', fSugOther: 'Suggested value',
+  fSugNote: 'Default comes from Settings and can be changed. Admin makes the final decision.', fMgrNotes: 'Notes', fAttach: 'Attachment (photo)', attReqd: 'Attachment required for this event.', attOptl: 'Attachment optional.', attShrink: 'Photos are shrunk before upload.', attHas: 'An attachment is saved. Choose a new photo to replace it.',
+  openMonths: 'Months open for entry: ', noneOpen: 'No open month. The admin opens one in Settings.', wClosed: 'This month is closed for entry.', wClosedAdmin: 'This month is closed for managers, but you can record as admin.',
+  wDup: 'Heads up: the same event was already recorded for this employee on this day. You can continue if intended.', wRepeat: 'This will be time #{n} for "{name}" for this employee {win}.', winMonthW: 'this month', winYearW: 'this year',
+  wBalance: '{name} balance: entitled {ent} · approved {used} · pending {pend} · remaining {rem} · after this request: {after}', wNoBalance: '{name} balance for this employee is not set in Settings.', wElig: 'This employee has not completed {m} months since hire ({d}).',
+  wTime: 'End time must be after start time.', wDates: 'End date must be on or after the start date.', submitNew: 'Record and send for review', submitEdit: 'Save changes and resend for review', clearForm: 'Clear',
+  recOk: 'Event recorded and sent for review.', editOk: 'Changes saved and resent for review.', uploading: 'Uploading photo...', hourW: 'h', minW: 'min', dayW: 'day', daysW: 'days', oneDay: 'One day', lockedEv: 'This event was already reviewed and cannot be edited.',
+  revTitle: 'Review & approval', revSub: 'Enter the final decision and approve, or select several requests and approve them at once.', evTitle: 'My branch events', evSub: 'Track what you recorded, and edit what is still pending or needs clarification.',
+  fsPending: 'Pending', fsClarify: 'Needs clarification', fsApproved: 'Approved', fsRejected: 'Rejected', fsAll: 'All', fMonth: 'Month', allMonths: 'All months', allTypes: 'All events',
+  cEvent: 'Event', cDate: 'Date', cSug: 'Manager suggestion', cFinal: 'Final decision', cNotes: 'Notes', cAction: 'Action', cSel: 'Select',
+  approve: 'Approve', clarify: 'Needs clarification', reject: 'Reject', rejReason: 'Rejection reason (required)', confirmRej: 'Confirm rejection', clarifyAsk: 'What should the manager clarify? (optional)', editFinal: 'Edit decision', editFinalAsk: 'New final decision:',
+  bulk: 'Approve selected ({n})', bulkDone: '{n} requests approved.', approved: 'Request approved.', clarified: 'Sent back to the manager.', rejected: 'Request rejected.', delOk: 'Deleted.', editBtn: 'Edit', delBtn: 'Delete', viewAtt: 'Attachment',
+  repeatN: 'Time #{n}', reasonP: 'Reason: ', noteP: 'Admin note: ', byMgr: 'Manager note: ', stLocked: 'Locked', hPending: 'Pending requests', hClarify: 'Needs clarification', hOpenReview: 'Open review', hRecord: 'Record event', hMyEvents: 'My branch events'
+});
+
+const unitName = (u) => ({ hour: t('uHour'), day: t('uDay'), amount: t('uAmount') })[u] || u;
+const tm = (x) => (x ? String(x).slice(0, 5) : '');
+const daysBetween = (a, b) => { const d = Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000); return d >= 0 ? d + 1 : 0; };
+const monthKey = (d) => String(d || '').slice(0, 7);
+const statusChip = (s) => ({ pending: chip(t('fsPending'), 'warn'), clarify: chip(t('fsClarify'), 'off'), approved: chip(t('fsApproved'), 'on'), rejected: chip(t('fsRejected'), 'err') })[s];
+
+async function shrinkImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    let scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    let blob = null;
+    for (let round = 0; round < 4; round++) {
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * scale)); c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      for (const qv of [0.78, 0.62, 0.48]) {
+        blob = await new Promise((r) => c.toBlob(r, 'image/webp', qv));
+        if (!blob || blob.type !== 'image/webp') blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', qv));
+        if (blob.size <= 180000) return blob;
+      }
+      scale *= 0.7;
+    }
+    return blob;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function viewRegister() {
+  const editId = S.param && S.param !== 'new' ? Number(S.param) : null;
+  const yearStart = today().slice(0, 4) + '-01-01';
+  const [types, details, periods, settings, empsAll, extraAll, ev] = await Promise.all([
+    q(sb.from('event_types').select('*').order('sort')), q(sb.from('event_details').select('*').order('sort')),
+    q(sb.from('periods').select('*')), q(sb.from('settings').select('*')),
+    q(sb.from('employees').select('id,code,full_name,primary_branch_id,hire_date,status')), q(sb.from('employee_branches').select('employee_id,branch_id')),
+    editId ? q(sb.from('events').select('*').eq('id', editId).maybeSingle()) : null]);
+  if (editId && !ev) return h('div', { class: 'box err' }, t('noRows'));
+  if (editId && !isAdmin() && !['pending', 'clarify'].includes(ev.status)) return h('div', { class: 'box err' }, t('lockedEv'));
+  const openSet = new Set(periods.filter((p) => p.is_open).map((p) => monthKey(p.month)));
+  const setting = (k) => { const r = settings.find((s) => s.key === k); return r ? r.value : null; };
+  const typeOf = (id) => types.find((x) => x.id === Number(id));
+
+  const branchOpts = isAdmin() ? S.branches.filter((b) => b.is_active || (ev && b.id === ev.branch_id)) : S.branches.filter((b) => b.id === S.profile.branch_id);
+  const brSel = sel(branchOpts.map((b) => [b.id, bName(b)]), ev ? ev.branch_id : (isAdmin() ? (S.cache.regBranch || (branchOpts[0] && branchOpts[0].id)) : S.profile.branch_id), { disabled: !isAdmin() || !!editId });
+  const empSel = h('select', { class: 'inp' });
+  const fillEmps = () => {
+    const b = Number(brSel.value); const extra = new Set(extraAll.filter((x) => x.branch_id === b).map((x) => x.employee_id));
+    const list = empsAll.filter((e) => (e.status === 'active' || (ev && e.id === ev.employee_id)) && (e.primary_branch_id === b || extra.has(e.id))).sort((a, c) => cmpCode(a.code, c.code));
+    const keep = empSel.value || (ev ? String(ev.employee_id) : '');
+    empSel.replaceChildren(h('option', { value: '' }, '—'), ...list.map((e) => h('option', { value: e.id, selected: String(e.id) === keep }, e.code + ' - ' + e.full_name)));
+  };
+  fillEmps();
+  const typeSel = sel([['', '—'], ...types.filter((x) => x.is_active || (ev && x.id === ev.event_type_id)).map((x) => [x.id, nm(x)])], ev ? ev.event_type_id : '');
+  const detSel = h('select', { class: 'inp' });
+  const fillDetails = (keepId) => {
+    const ds = details.filter((d) => d.event_type_id === Number(typeSel.value) && (d.is_active || d.id === keepId));
+    detSel.replaceChildren(...(ds.length ? ds.map((d) => h('option', { value: d.id, selected: d.id === keepId }, nm(d))) : [h('option', { value: '' }, '—')]));
+  };
+  fillDetails(ev ? ev.detail_id : null);
+  const dFrom = inp({ type: 'date', value: ev ? ev.date_from : today() }), dTo = inp({ type: 'date', value: ev ? ev.date_to : today() });
+  const tFrom = inp({ type: 'time', value: ev ? tm(ev.time_from) : '' }), tTo = inp({ type: 'time', value: ev ? tm(ev.time_to) : '' });
+  const sug = inp({ type: 'number', min: '0', step: '0.25', value: ev ? ev.suggested : '' });
+  const unitEl = h('span', { style: 'font-weight:600;white-space:nowrap' });
+  const durEl = h('div', { style: 'min-height:44px;display:flex;align-items:center;padding:0 12px;background:var(--surface2);border-radius:8px;font-weight:600' }, '—');
+  const notes = h('textarea', { class: 'inp', rows: '3' }, ev ? ev.manager_notes || '' : '');
+  const fileInp = h('input', { type: 'file', accept: 'image/*', class: 'inp' });
+  const attNote = h('div', { class: 'muted', style: 'margin-top:4px' });
+  const sugLabel = h('label', { class: 'lbl' });
+  const toWrap = h('div', null, field(t('fToDate'), dTo)); const timeWrap = h('div', { class: 'row', style: 'flex-wrap:nowrap' }, h('div', { style: 'flex:1' }, field(t('fFromTime'), tFrom)), h('div', { style: 'flex:1' }, field(t('fToTime'), tTo)));
+  const attWrap = h('div', { style: 'grid-column:1/-1' }, field(t('fAttach'), fileInp), attNote);
+  const fromLbl = h('label', { class: 'lbl', for: 'r-from' }); dFrom.id = 'r-from';
+  const warnBox = h('div', { style: 'display:flex;flex-direction:column;gap:8px' });
+  const submit = h('button', { class: 'btn', type: 'button' }, editId ? t('submitEdit') : t('submitNew'));
+
+  const curDetail = () => details.find((d) => d.id === Number(detSel.value));
+  const curUnit = () => { const ty = typeOf(typeSel.value); const d = curDetail(); return (d && d.unit) || (ty && ty.unit) || ''; };
+  const computeSuggestion = () => {
+    const ty = typeOf(typeSel.value); const d = curDetail(); if (!ty) return '';
+    const def = d ? Number(d.default_value) : 0;
+    const days = daysBetween(dFrom.value, ty.needs_range ? dTo.value : dFrom.value);
+    if (ty.category === 'leave') return def > 0 && def < 1 ? def : days;
+    if (ty.needs_range && (d && d.unit ? d.unit : ty.unit) === 'day') return def * days;
+    return def;
+  };
+  const layout = () => {
+    const ty = typeOf(typeSel.value);
+    toWrap.style.display = ty && ty.needs_range ? '' : 'none';
+    timeWrap.style.display = ty && ty.needs_time ? '' : 'none';
+    attWrap.style.display = ty && ty.attachment !== 'none' ? '' : 'none';
+    attNote.textContent = ty ? [(ty.attachment === 'required' ? t('attReqd') : t('attOptl')), t('attShrink'), ev && ev.attachment ? t('attHas') : ''].filter(Boolean).join(' ') : '';
+    fromLbl.textContent = ty && ty.needs_range ? t('fFromDate') : t('fDate');
+    sugLabel.textContent = !ty ? t('fSugOther') : ty.category === 'entitlement' ? t('fSugEnt') : ty.category === 'leave' ? t('fSugLeave') : ty.category === 'deduction' ? t('fSugDed') : t('fSugOther');
+    unitEl.textContent = unitName(curUnit());
+    // المدة
+    let dur = '—';
+    if (ty && ty.needs_time && tFrom.value && tTo.value) { const [a, b] = tFrom.value.split(':').map(Number), [c, d2] = tTo.value.split(':').map(Number); const mins = c * 60 + d2 - (a * 60 + b); dur = mins > 0 ? [Math.floor(mins / 60) ? Math.floor(mins / 60) + ' ' + t('hourW') : '', mins % 60 ? (mins % 60) + ' ' + t('minW') : ''].filter(Boolean).join(' ') : t('wTime'); }
+    else if (ty && ty.needs_range) { const n = daysBetween(dFrom.value, dTo.value); dur = n ? n + ' ' + (n === 1 ? t('dayW') : t('daysW')) : t('wDates'); }
+    else if (ty) dur = t('oneDay');
+    durEl.textContent = dur;
+  };
+  const resetSuggestion = () => { const v = computeSuggestion(); sug.value = v === '' ? '' : String(Math.round(Number(v) * 100) / 100); };
+  let checkSeq = 0;
+  const checks = async () => {
+    const my = ++checkSeq; const ty = typeOf(typeSel.value); const empId = Number(empSel.value); const out = [];
+    const m = monthKey(dFrom.value);
+    if (dFrom.value && !openSet.has(m)) out.push(h('div', { class: 'box ' + (isAdmin() ? 'warn' : 'err') }, isAdmin() ? t('wClosedAdmin') : t('wClosed')));
+    if (ty && ty.needs_range && dTo.value && dTo.value < dFrom.value) out.push(h('div', { class: 'box err' }, t('wDates')));
+    if (ty && empId && dFrom.value) {
+      try {
+        const winStart = ty.count_window === 'year' ? dFrom.value.slice(0, 4) + '-01-01' : m + '-01';
+        const nextM = (() => { const [y, mm] = m.split('-').map(Number); return mm === 12 ? (y + 1) + '-01-01' : y + '-' + String(mm + 1).padStart(2, '0') + '-01'; })();
+        const winEnd = ty.count_window === 'year' ? (Number(dFrom.value.slice(0, 4)) + 1) + '-01-01' : nextM;
+        const same = await q(sb.from('events').select('id,date_from,status').eq('employee_id', empId).eq('event_type_id', ty.id).neq('status', 'rejected').gte('date_from', winStart).lt('date_from', winEnd));
+        const others = same.filter((x) => x.id !== editId);
+        if (others.some((x) => x.date_from === dFrom.value)) out.push(h('div', { class: 'box warn' }, t('wDup')));
+        if (ty.count_repeats) { const n = others.filter((x) => x.date_from <= dFrom.value).length + 1; if (n > 1) out.push(h('div', { class: 'box ok' }, t('wRepeat', { n, name: nm(ty), win: ty.count_window === 'year' ? t('winYearW') : t('winMonthW') }))); }
+        const emp = empsAll.find((e) => e.id === empId);
+        if (ty.category === 'leave' && emp) {
+          const elig = Number(setting('leave_eligibility_months'));
+          if (elig > 0 && ty.balance_type) { const hd = new Date(emp.hire_date + 'T00:00:00Z'); hd.setUTCMonth(hd.getUTCMonth() + elig); if (new Date(dFrom.value + 'T00:00:00Z') < hd) out.push(h('div', { class: 'box warn' }, t('wElig', { m: elig, d: fmtDate(emp.hire_date) }))); }
+          if (ty.balance_type) {
+            const yr = Number(dFrom.value.slice(0, 4));
+            const ent = await q(sb.from('leave_entitlements').select('days').eq('employee_id', empId).eq('year', yr).eq('balance_type', ty.balance_type).maybeSingle());
+            const def = setting(ty.balance_type === 'annual' ? 'annual_leave_days' : 'casual_leave_days');
+            const entitled = ent ? Number(ent.days) : (def != null ? Number(def) : null);
+            const typeIds = types.filter((x) => x.balance_type === ty.balance_type).map((x) => x.id);
+            const used = await q(sb.from('events').select('id,final,suggested,status').eq('employee_id', empId).in('event_type_id', typeIds).in('status', ['approved', 'pending', 'clarify']).gte('date_from', yr + '-01-01').lt('date_from', (yr + 1) + '-01-01'));
+            const appr = used.filter((x) => x.status === 'approved').reduce((s, x) => s + Number(x.final || 0), 0);
+            const pend = used.filter((x) => x.status !== 'approved' && x.id !== editId).reduce((s, x) => s + Number(x.suggested || 0), 0);
+            const label = ty.balance_type === 'annual' ? t('balAnnual') : t('balCasual');
+            out.push(entitled == null ? h('div', { class: 'box warn' }, t('wNoBalance', { name: label })) : h('div', { class: 'box ' + (entitled - appr - pend - Number(sug.value || 0) < 0 ? 'err' : 'ok') }, t('wBalance', { name: label, ent: entitled, used: appr, pend, rem: Math.round((entitled - appr - pend) * 100) / 100, after: Math.round((entitled - appr - pend - Number(sug.value || 0)) * 100) / 100 })));
+          }
+        }
+      } catch (ex) { console.error(ex); }
+    }
+    if (my === checkSeq) warnBox.replaceChildren(...out);
+  };
+  const changed = (resetSug) => { if (resetSug) resetSuggestion(); layout(); checks(); };
+  brSel.addEventListener('change', () => { S.cache.regBranch = Number(brSel.value); empSel.value = ''; fillEmps(); changed(false); });
+  empSel.addEventListener('change', () => changed(false));
+  typeSel.addEventListener('change', () => { fillDetails(null); changed(true); });
+  detSel.addEventListener('change', () => changed(true));
+  dFrom.addEventListener('change', () => { if (dTo.value < dFrom.value) dTo.value = dFrom.value; changed(typeOf(typeSel.value)?.category === 'leave'); });
+  dTo.addEventListener('change', () => changed(typeOf(typeSel.value)?.category === 'leave'));
+  tFrom.addEventListener('change', () => changed(false)); tTo.addEventListener('change', () => changed(false));
+  sug.addEventListener('change', () => checks());
+  layout(); if (!ev) resetSuggestion(); checks();
+
+  submit.addEventListener('click', async () => {
+    const ty = typeOf(typeSel.value);
+    if (!empSel.value || !ty || !dFrom.value || (ty.needs_range && !dTo.value) || (ty.needs_time && (!tFrom.value || !tTo.value)) || sug.value === '') { toast(t('fieldsMissing'), 'err'); return; }
+    if (ty.needs_range && dTo.value < dFrom.value) { toast(t('wDates'), 'err'); return; }
+    if (ty.needs_time && tTo.value <= tFrom.value) { toast(t('wTime'), 'err'); return; }
+    const file = fileInp.files && fileInp.files[0];
+    if (ty.attachment === 'required' && !file && !(ev && ev.attachment)) { toast(t('attReqd'), 'err'); return; }
+    submit.disabled = true;
+    try {
+      const branchId = Number(brSel.value);
+      let attachment = ev ? ev.attachment : null;
+      if (file && ty.attachment !== 'none') {
+        toast(t('uploading'));
+        const blob = await shrinkImage(file);
+        const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
+        const path = branchId + '/' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) + '.' + ext;
+        const up = await sb.storage.from('attachments').upload(path, blob, { contentType: blob.type, upsert: false });
+        if (up.error) throw up.error;
+        attachment = path;
+      }
+      const row = { employee_id: Number(empSel.value), branch_id: branchId, event_type_id: ty.id, detail_id: detSel.value ? Number(detSel.value) : null,
+        date_from: dFrom.value, date_to: ty.needs_range ? dTo.value : dFrom.value, time_from: ty.needs_time ? tFrom.value : null, time_to: ty.needs_time ? tTo.value : null,
+        suggested: Number(sug.value), manager_notes: nn(notes.value.trim()), attachment };
+      if (editId) { if (!isAdmin()) row.status = 'pending'; await q(sb.from('events').update(row).eq('id', editId)); toast(t('editOk')); go('events'); }
+      else { await q(sb.from('events').insert(row)); toast(t('recOk')); S.cache.regLastEmp = row.employee_id; go('register'); }
+    } catch (ex) { fail(ex); submit.disabled = false; }
+  });
+
+  const openList = [...openSet].sort();
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px;max-width:900px' },
+    h('div', null, h('h1', null, editId ? t('regEdit') : t('regTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, openList.length ? t('openMonths') + openList.join(' · ') : t('noneOpen'))),
+    ev && ev.status === 'clarify' && ev.review_note ? h('div', { class: 'box warn' }, t('noteP') + ev.review_note) : null,
+    h('div', { class: 'card grid' },
+      isAdmin() ? field(t('cBranch'), brSel) : null,
+      field(t('fEmployee'), empSel, { req: true }), field(t('fEventType'), typeSel, { req: true }), field(t('fDetail'), detSel),
+      h('div', null, fromLbl, dFrom), toWrap, timeWrap,
+      h('div', null, h('span', { class: 'lbl' }, t('fDuration')), durEl),
+      h('div', null, sugLabel, h('div', { class: 'row', style: 'flex-wrap:nowrap' }, sug, unitEl), h('div', { class: 'muted', style: 'margin-top:4px' }, t('fSugNote'))),
+      field(t('fMgrNotes'), notes, { full: true }), attWrap),
+    warnBox,
+    h('div', { class: 'row' }, submit, h('button', { class: 'btn2', type: 'button', onClick: () => (editId ? go('events') : render()) }, editId ? t('cancel') : t('clearForm'))));
+}
+
+async function viewEvents() {
+  const f = S.cache.evf || (S.cache.evf = { status: isAdmin() ? 'pending' : 'all', month: today().slice(0, 7), branch: '', type: '', text: '' });
+  const types = await q(sb.from('event_types').select('id,name,name_en').order('sort'));
+  const selected = new Set();
+  const listWrap = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
+  const bulkBtn = h('button', { class: 'btn', type: 'button', disabled: true });
+  const setBulk = () => { bulkBtn.textContent = t('bulk', { n: selected.size }); bulkBtn.disabled = selected.size === 0; };
+  setBulk();
+  const finals = new Map();
+  const act = async (p, msg) => { try { await q(p); toast(msg); load(); } catch (ex) { fail(ex); } };
+  bulkBtn.addEventListener('click', async () => {
+    bulkBtn.disabled = true; let n = 0;
+    try { for (const id of selected) { const v = finals.get(id); const patch = { status: 'approved' }; if (v != null && v !== '') patch.final = Number(v); await q(sb.from('events').update(patch).eq('id', id)); n++; } toast(t('bulkDone', { n })); }
+    catch (ex) { fail(ex); }
+    selected.clear(); setBulk(); load();
+  });
+  const load = async () => {
+    listWrap.replaceChildren(h('div', { class: 'muted' }, t('loading')));
+    try {
+      let qq = sb.from('v_events').select('*').order('date_from', { ascending: false }).order('id', { ascending: false });
+      if (f.month) { const [y, m] = f.month.split('-').map(Number); const next = m === 12 ? (y + 1) + '-01-01' : y + '-' + String(m + 1).padStart(2, '0') + '-01'; qq = qq.gte('date_from', f.month + '-01').lt('date_from', next); }
+      if (f.status !== 'all') qq = qq.eq('status', f.status);
+      if (f.branch) qq = qq.eq('branch_id', Number(f.branch));
+      if (f.type) qq = qq.eq('event_type_id', Number(f.type));
+      let rows = await q(qq);
+      const txt = f.text.trim().toLowerCase();
+      if (txt) rows = rows.filter((r) => r.employee_name.toLowerCase().includes(txt) || String(r.employee_code).toLowerCase().includes(txt));
+      selected.clear(); finals.clear(); setBulk();
+      listWrap.replaceChildren(h('div', { class: 'muted' }, t('count') + ': ' + rows.length), table(rows));
+    } catch (ex) { listWrap.replaceChildren(h('div', { class: 'box err' }, t('errGeneric') + ex.message)); }
+  };
+  const table = (rows) => {
+    const admin = isAdmin();
+    const head = h('tr', null, admin ? h('th', null, h('span', { class: 'sr' }, t('cSel'))) : null, h('th', null, t('cName')), admin ? h('th', null, t('cBranch')) : null, h('th', null, t('cEvent')), h('th', null, t('cDate')), h('th', null, t('cSug')), h('th', null, t('cFinal')), h('th', null, t('cStatus')), h('th', null, t('cAction')));
+    const body = rows.map((r) => {
+      const unit = unitName(r.unit); const open = r.status === 'pending' || r.status === 'clarify';
+      const typeName = L() ? r.event_type_name_en || r.event_type_name : r.event_type_name;
+      const detName = L() ? r.detail_name_en || r.detail_name : r.detail_name;
+      const evCell = h('td', null, h('div', { style: 'font-weight:600' }, typeName), detName ? h('div', { class: 'muted' }, detName) : null,
+        r.time_from ? h('div', { class: 'muted', dir: 'ltr', style: 'text-align:start' }, tm(r.time_from) + ' - ' + tm(r.time_to)) : null,
+        r.repeat_no > 1 ? h('div', { style: 'font-size:12px;font-weight:700;color:var(--warn-ink)' }, t('repeatN', { n: r.repeat_no })) : null,
+        r.manager_notes ? h('div', { class: 'muted' }, t('byMgr') + r.manager_notes) : null);
+      const dateTxt = r.date_to && r.date_to !== r.date_from ? fmtDate(r.date_from) + ' - ' + fmtDate(r.date_to) : fmtDate(r.date_from);
+      let finalCell, actions = [];
+      if (admin && open) {
+        const fi = inp({ type: 'number', min: '0', step: '0.25', value: r.final ?? r.suggested, style: 'max-width:100px', 'aria-label': t('cFinal') });
+        fi.addEventListener('input', () => finals.set(r.id, fi.value));
+        finalCell = h('div', { class: 'row', style: 'flex-wrap:nowrap' }, fi, h('span', { class: 'muted' }, unit));
+        const actBox = h('div', { class: 'row' });
+        const normal = () => actBox.replaceChildren(
+          h('button', { class: 'btn sm', type: 'button', onClick: () => act(sb.from('events').update({ status: 'approved', final: Number(fi.value === '' ? r.suggested : fi.value) }).eq('id', r.id), t('approved')) }, t('approve')),
+          h('button', { class: 'btn2 sm', type: 'button', onClick: () => { const note = prompt(t('clarifyAsk'), r.review_note || ''); if (note === null) return; act(sb.from('events').update({ status: 'clarify', review_note: nn(note.trim()) }).eq('id', r.id), t('clarified')); } }, t('clarify')),
+          h('button', { class: 'btnd sm', type: 'button', onClick: () => {
+            const reason = inp({ type: 'text', placeholder: t('rejReason'), 'aria-label': t('rejReason'), style: 'min-width:180px' });
+            const ok = h('button', { class: 'btnd sm', type: 'button', disabled: true, onClick: () => act(sb.from('events').update({ status: 'rejected', review_note: reason.value.trim() }).eq('id', r.id), t('rejected')) }, t('confirmRej'));
+            reason.addEventListener('input', () => (ok.disabled = !reason.value.trim()));
+            actBox.replaceChildren(reason, ok, h('button', { class: 'btn2 sm', type: 'button', onClick: normal }, t('cancel'))); reason.focus();
+          } }, t('reject')));
+        normal(); actions.push(actBox);
+      } else {
+        finalCell = r.status === 'rejected' ? '—' : (r.final != null ? Number(r.final) + ' ' + unit : '—');
+        if (admin && r.status === 'approved') actions.push(h('button', { class: 'btn2 sm', type: 'button', onClick: () => { const v = prompt(t('editFinalAsk'), r.final); if (v === null || v.trim() === '' || isNaN(Number(v))) return; act(sb.from('events').update({ final: Number(v) }).eq('id', r.id), t('saved')); } }, t('editFinal')));
+        if (!admin && open) actions.push(h('button', { class: 'btn2 sm', type: 'button', onClick: () => go('register', r.id) }, t('editBtn')));
+        if (!admin && !open) actions.push(h('span', { class: 'muted' }, t('stLocked')));
+      }
+      if (admin && (r.status === 'pending' || r.status === 'rejected')) actions.push(h('button', { class: 'btnd sm', type: 'button', onClick: () => { if (confirm(t('confirmDel'))) act(sb.from('events').delete().eq('id', r.id), t('delOk')); } }, t('delBtn')));
+      if (r.attachment) actions.push(h('button', { class: 'btn2 sm', type: 'button', onClick: async () => { const w = window.open('', '_blank'); const s = await sb.storage.from('attachments').createSignedUrl(r.attachment, 300); if (s.error) { if (w) w.close(); fail(s.error); } else if (w) w.location = s.data.signedUrl; else location.href = s.data.signedUrl; } }, t('viewAtt')));
+      const cb = admin && r.status === 'pending' ? h('input', { type: 'checkbox', 'aria-label': t('cSel'), style: 'width:20px;height:20px', onChange: (e) => { if (e.target.checked) selected.add(r.id); else selected.delete(r.id); setBulk(); } }) : null;
+      return h('tr', null, admin ? h('td', null, cb) : null,
+        h('td', null, h('div', { style: 'font-weight:600' }, r.employee_name), h('div', { class: 'muted' }, t('cCode') + ' ' + r.employee_code)),
+        admin ? h('td', null, L() ? r.branch_name_en || r.branch_name : r.branch_name) : null,
+        evCell, h('td', { style: 'white-space:nowrap' }, dateTxt), h('td', { style: 'white-space:nowrap' }, r.suggested != null ? Number(r.suggested) + ' ' + unit : '—'),
+        h('td', null, finalCell),
+        h('td', null, statusChip(r.status), r.review_note ? h('div', { class: 'muted', style: 'margin-top:4px;max-width:220px' }, (r.status === 'rejected' ? t('reasonP') : t('noteP')) + r.review_note) : null),
+        h('td', null, h('div', { class: 'row' }, actions)));
+    });
+    return h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:' + (admin ? 1100 : 860) + 'px' }, h('thead', null, head), h('tbody', null, body.length ? body : h('tr', null, h('td', { colspan: '9', class: 'muted', style: 'text-align:center;padding:24px' }, t('noRows'))))));
+  };
+  const pills = h('div', { class: 'pills' });
+  const drawPills = () => pills.replaceChildren(...[['pending', t('fsPending')], ['clarify', t('fsClarify')], ['approved', t('fsApproved')], ['rejected', t('fsRejected')], ['all', t('fsAll')]].map(([v, l]) =>
+    h('button', { type: 'button', class: 'pill' + (f.status === v ? ' on' : ''), 'aria-pressed': f.status === v ? 'true' : 'false', onClick: () => { f.status = v; drawPills(); load(); } }, l)));
+  drawPills();
+  const month = inp({ type: 'month', value: f.month, 'aria-label': t('fMonth'), onChange: (e) => { f.month = e.target.value; load(); } });
+  const brSel = isAdmin() ? sel([['', t('allBranches')], ...S.branches.map((b) => [b.id, bName(b)])], f.branch, { 'aria-label': t('cBranch'), onChange: (e) => { f.branch = e.target.value; load(); } }) : null;
+  const tySel = sel([['', t('allTypes')], ...types.map((x) => [x.id, nm(x)])], f.type, { 'aria-label': t('cEvent'), onChange: (e) => { f.type = e.target.value; load(); } });
+  const search = inp({ type: 'search', placeholder: t('search'), value: f.text, 'aria-label': t('search') });
+  let st; search.addEventListener('input', () => { clearTimeout(st); st = setTimeout(() => { f.text = search.value; load(); }, 300); });
+  load();
+  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+    h('div', { class: 'between' }, h('div', null, h('h1', null, isAdmin() ? t('revTitle') : t('evTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, isAdmin() ? t('revSub') : t('evSub'))),
+      isAdmin() ? bulkBtn : h('button', { class: 'btn', type: 'button', onClick: () => go('register') }, t('hRecord'))),
+    pills,
+    h('div', { class: 'row' }, h('div', { style: 'flex:1 1 160px' }, month), brSel ? h('div', { style: 'flex:1 1 160px' }, brSel) : null, h('div', { style: 'flex:1 1 180px' }, tySel), h('div', { style: 'flex:2 1 220px' }, search),
+      h('button', { class: 'btn2 sm', type: 'button', onClick: () => { f.month = ''; month.value = ''; load(); } }, t('allMonths'))),
+    listWrap);
 }
 
 /* ====================== التشغيل ====================== */
