@@ -2,7 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6a2c70">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NoVoDux HR">
+<meta name="format-detection" content="telephone=no">
 <title>NoVoDux Academy — الموارد البشرية</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,6 +106,40 @@ tr.grp td{background:var(--accent-soft);color:var(--accent);font-weight:800}
 td.num{text-align:center}
 td.diff{box-shadow:inset 0 0 0 2px var(--danger);color:var(--danger);font-weight:800}
 .print-only{display:none}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (pointer:coarse){
+  .inp,.qs{font-size:16px}
+  .sinp,.tinp{font-size:16px}
+  .scell{min-width:136px;max-width:160px}
+  table.sched th.dayh{min-width:136px}
+  .thbtn,.nav-btn,.pill{touch-action:manipulation}
+}
+header.top{padding-top:max(10px,env(safe-area-inset-top))}
+a.nav-btn{text-decoration:none}
+a.lnk{color:inherit;text-decoration:none}
+a.lnk:hover{color:var(--accent);text-decoration:underline}
+a.btn,a.btn2,a.btnd{text-decoration:none}
+a.card.kpi,a.brcard,a.plan-card{display:block;text-decoration:none;color:inherit;transition:transform .15s,box-shadow .15s,border-color .15s}
+a.card.kpi:hover,a.brcard:hover,a.plan-card:hover{transform:translateY(-2px);border-color:var(--accent2);box-shadow:0 10px 26px rgba(106,44,112,.18)}
+.brcard{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface)}
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.plan-card{display:flex !important;flex-direction:column;gap:4px}
+.sg{font-weight:800;white-space:nowrap;border-radius:8px;padding:2px 8px}
+.sg.minus{color:var(--danger);background:var(--err-bg)}
+.sg.plus{color:var(--ok-ink);background:var(--ok-bg)}
+.sg.leave{color:var(--accent-soft-ink);background:var(--accent-soft)}
+.sgt-minus{color:var(--danger) !important;font-weight:700}
+.sgt-plus{color:var(--ok-ink) !important;font-weight:700}
+.big-sign .sg{font-size:18px;padding:6px 14px}
+th.sortable{padding:0}
+.thbtn{font:inherit;font-weight:700;font-size:13px;color:inherit;background:none;border:none;cursor:pointer;padding:10px 12px;width:100%;text-align:start;white-space:nowrap}
+.thbtn .arr{opacity:.75;font-size:11px}
+.qs-wrap{flex:1 1 220px;max-width:360px}
+.qs{min-height:38px;background:rgba(255,255,255,.95);color:#1f1029;border-color:transparent}
+.theme-dark .qs{background:#2e1b38;color:#f1e8f5}
+.att-img{max-width:100%;max-height:420px;border-radius:12px;border:1px solid var(--border)}
+.box.instr{background:var(--accent-soft);border:1px solid var(--accent2);color:var(--accent-soft-ink);border-inline-start:6px solid var(--gold)}
+.au-ch{margin:4px 0 0;padding-inline-start:18px;font-size:13px;line-height:1.7}
 .permwrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
 .permgrp{border:1px solid var(--border);border-radius:12px;padding:8px 12px}
 .permgrp-h{font-weight:800;color:var(--accent);font-size:13px;margin-bottom:2px}
@@ -110,6 +150,7 @@ td.diff{box-shadow:inset 0 0 0 2px var(--danger);color:var(--danger);font-weight
   main{padding:14px 12px 96px}
   nav.side{position:fixed;inset-inline:0;bottom:0;max-width:none;min-width:0;flex-direction:row;overflow-x:auto;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));border-inline-end:0;border-top:1px solid var(--border);z-index:30;box-shadow:0 -6px 20px rgba(60,20,70,.12);gap:4px;scrollbar-width:none}
   .nav-btn{flex:0 0 auto;white-space:nowrap;font-size:13px;min-height:42px;padding:6px 12px}
+  .qs-wrap{order:3;flex-basis:100%;max-width:none}
   .nav-btn.active{box-shadow:inset 0 -3px 0 var(--gold)}
   header.top{padding:8px 12px}
   .brand-sub{max-width:52vw}
@@ -323,78 +364,34 @@ async function render() {
   applyChrome();
   if (!S.session || !S.profile) { mount(viewLogin()); return; }
   const seq = (S.renderSeq = (S.renderSeq || 0) + 1);
-  const ok = await refreshProfile();
+  const [ok] = await Promise.all([refreshProfile(), loadCal()]);
   if (seq !== S.renderSeq || !S.session || !S.profile) return;
   if (!ok) { mount(viewLogin(t('noProfile'))); return; }
-  const views = { home: viewHome, employees: viewEmployees, employee: viewEmployee, import: viewImport, users: viewUsers, settings: viewSettings, account: viewAccount, register: viewRegister, events: viewEvents, schedule: viewSchedule, reports: viewReports, audit: viewAudit };
-  try { const c = await sb.from('events').select('id', { count: 'exact', head: true }).in('status', can('approve_events') ? ['pending'] : ['clarify']); S.pendingCount = c.count || 0; } catch (e) { S.pendingCount = 0; }
+  const views = { home: viewHome, employees: viewEmployees, employee: viewEmployee, import: viewImport, users: viewUsers, settings: viewSettings, account: viewAccount, register: viewRegister, events: viewEvents, schedule: viewSchedule, reports: viewReports, audit: viewAudit, plan: viewPlan, report: viewReport, event: viewEvent };
+  try {
+    if (can('approve_events')) { const c = await sb.from('events').select('id', { count: 'exact', head: true }).eq('status', 'pending'); S.pendingCount = c.count || 0; }
+    else if (canEvents()) {
+      if (S.route === 'events') setPref('hr_seen_' + S.profile.id, new Date().toISOString());
+      if (!pref('hr_seen_' + S.profile.id, null)) setPref('hr_seen_' + S.profile.id, new Date().toISOString());
+      const seen = pref('hr_seen_' + S.profile.id, new Date().toISOString());
+      const [c1, c2] = await Promise.all([sb.from('events').select('id', { count: 'exact', head: true }).eq('status', 'clarify'), sb.from('events').select('id', { count: 'exact', head: true }).in('status', ['rejected', 'approved']).gt('reviewed_at', seen)]);
+      S.pendingCount = (c1.count || 0) + (c2.count || 0);
+    } else S.pendingCount = 0;
+  } catch (e) { S.pendingCount = 0; }
   if (seq !== S.renderSeq || !S.profile) return;
   let fn = views[S.route] || viewHome;
   if (!isAdmin() && ['import', 'users', 'settings', 'audit'].includes(S.route)) fn = viewHome;
   if (ROUTE_OK[S.route] && !ROUTE_OK[S.route]()) fn = viewHome;
-  if (S.route !== 'employee') S.cache.editEmp = null;
+  const rk = S.route + '/' + (S.param ?? '');
+  if (S.lastRk && S.lastRk !== rk) (S.scrollPos || (S.scrollPos = {}))[S.lastRk] = window.scrollY;
+  const keepY = S.lastRk === rk ? window.scrollY : ((S.scrollPos || {})[rk] || 0);
+  S.lastRk = rk;
   const holder = h('div', { style: 'display:flex;flex-direction:column;gap:18px' }, h('div', { class: 'muted' }, t('loading')));
   mount(shell(holder));
-  try { const node = await fn(); holder.replaceChildren(node); } catch (e) { holder.replaceChildren(h('div', { class: 'box err' }, t('errGeneric') + (e.message || e))); console.error(e); }
-}
-
-/* ====================== الرئيسية ====================== */
-async function viewHome() {
-  const [emps, types, periods] = await Promise.all([
-    q(sb.from('employees').select('id,primary_branch_id,status')),
-    q(sb.from('event_types').select('id,is_active')),
-    q(sb.from('periods').select('month,is_open'))
-  ]);
-  const active = emps.filter((e) => e.status === 'active');
-  const openM = periods.filter((p) => p.is_open).map((p) => p.month.slice(0, 7));
-  const kpi = (label, value, sub) => h('div', { class: 'card' }, h('div', { class: 'muted' }, label), h('div', { style: 'font-size:30px;font-weight:700;margin-top:6px' }, value), sub ? h('div', { class: 'muted' }, sub) : null);
-  const visibleBranches = S.branches.filter((b) => isAdmin() || b.id === S.profile.branch_id);
-  const evc = await q(sb.from('events').select('status').in('status', ['pending', 'clarify']));
-  return h('div', { style: 'display:flex;flex-direction:column;gap:18px' },
-    h('div', { class: 'between' }, h('h1', null, t('nHome')), h('div', { class: 'row' },
-      can('register_events') ? h('button', { class: 'btn', type: 'button', onClick: () => go('register') }, t('hRecord')) : null,
-      canSched() ? h('button', { class: 'btn2', type: 'button', onClick: () => go('schedule') }, t('nSchedule')) : null,
-      canEvents() ? h('button', { class: 'btn2', type: 'button', onClick: () => { S.cache.evf = Object.assign(S.cache.evf || {}, { status: can('approve_events') ? 'pending' : 'clarify', month: '', branch: '', type: '', text: '' }); go('events'); } }, can('approve_events') ? t('hOpenReview') : t('hMyEvents')) : null)),
-    h('div', { class: 'grid' },
-      kpi(t('hPending'), evc.filter((x) => x.status === 'pending').length),
-      kpi(t('hClarify'), evc.filter((x) => x.status === 'clarify').length),
-      kpi(t('hActive'), active.length),
-      isAdmin() ? kpi(t('hBranches'), S.branches.filter((b) => b.is_active).length) : null,
-      kpi(t('hTypes'), types.filter((x) => x.is_active).length),
-      kpi(t('hOpen'), openM.length, openM.join(' · '))),
-    h('div', { class: 'card' }, h('h2', null, t('hByBranch')),
-      h('div', { class: 'grid' }, visibleBranches.map((b) => h('div', { style: 'border:1px solid var(--border);border-radius:10px;padding:14px' },
-        h('div', { style: 'font-weight:600' }, bName(b), b.is_active ? '' : ' ', b.is_active ? null : chip(t('sClosedTxt'), 'off')),
-        h('div', { class: 'muted' }, active.filter((e) => e.primary_branch_id === b.id).length + ' ' + t('stActive')))))),
-    isAdmin() ? h('div', { class: 'card' }, h('h2', null, t('hNext')), h('ol', { style: 'margin:0;padding-inline-start:20px;line-height:2' }, h('li', null, t('hStep1')), h('li', null, t('hStep2')), h('li', null, t('hStep3')), h('li', null, t('hStep4')))) : h('div', { class: 'box ok' }, t('mgrNote')));
+  try { const node = await fn(); if (seq !== S.renderSeq) return; holder.replaceChildren(node); setTimeout(() => window.scrollTo(0, keepY), 350); } catch (e) { holder.replaceChildren(h('div', { class: 'box err' }, t('errGeneric') + (e.message || e))); console.error(e); }
 }
 
 /* ====================== الموظفين ====================== */
-async function viewEmployees() {
-  const emps = (await q(sb.from('employees').select('id,code,full_name,primary_branch_id,job_title,hire_date,status'))).sort((a, b) => cmpCode(a.code, b.code));
-  const f = S.cache.empFilter || (S.cache.empFilter = { text: '', branch: '', status: 'active' });
-  const tbody = h('tbody');
-  const countEl = h('span', { class: 'muted' });
-  const draw = () => {
-    const txt = f.text.trim().toLowerCase();
-    const rows = emps.filter((e) => (!txt || e.full_name.toLowerCase().includes(txt) || String(e.code).toLowerCase().includes(txt)) && (!f.branch || String(e.primary_branch_id) === f.branch) && (f.status === 'all' || e.status === f.status));
-    countEl.textContent = t('count') + ': ' + rows.length;
-    tbody.replaceChildren(...(rows.length ? rows.map((e) => h('tr', { class: 'click', tabindex: '0', onClick: () => go('employee', e.id), onKeydown: (ev) => { if (ev.key === 'Enter') go('employee', e.id); } },
-      h('td', null, e.code), h('td', { style: 'font-weight:600' }, e.full_name), h('td', null, bName(S.branches.find((b) => b.id === e.primary_branch_id))), h('td', null, e.job_title), h('td', null, fmtDate(e.hire_date)),
-      h('td', null, e.status === 'active' ? chip(t('stActive'), 'on') : chip(t('stTerm'), 'off')))) : [h('tr', null, h('td', { colspan: '6', class: 'muted', style: 'text-align:center;padding:24px' }, t('noRows')))]));
-  };
-  const search = inp({ type: 'search', placeholder: t('search'), value: f.text, 'aria-label': t('search'), onInput: (e) => { f.text = e.target.value; draw(); } });
-  const brSel = sel([['', t('allBranches')], ...S.branches.filter((b) => isAdmin() || b.id === S.profile.branch_id).map((b) => [b.id, bName(b)])], f.branch, { 'aria-label': t('cBranch'), onChange: (e) => { f.branch = e.target.value; draw(); } });
-  const stPills = h('div', { class: 'pills' });
-  const drawPills = () => stPills.replaceChildren(...[['active', t('stActive')], ['terminated', t('stTerm')], ['all', t('stAll')]].map(([v, l]) => h('button', { type: 'button', class: 'pill' + (f.status === v ? ' on' : ''), 'aria-pressed': f.status === v ? 'true' : 'false', onClick: () => { f.status = v; drawPills(); draw(); } }, l)));
-  drawPills(); draw();
-  return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
-    h('div', { class: 'between' }, h('h1', null, t('nEmployees')), can('add_employees') ? h('button', { class: 'btn', type: 'button', onClick: () => go('employee', 'new') }, t('newEmp')) : null),
-    h('div', { class: 'row' }, h('div', { style: 'flex:2 1 240px' }, search), h('div', { style: 'flex:1 1 180px' }, brSel), stPills, countEl),
-    h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:720px' },
-      h('thead', null, h('tr', null, h('th', null, t('cCode')), h('th', null, t('cName')), h('th', null, t('cBranch')), h('th', null, t('cJob')), h('th', null, t('cHire')), h('th', null, t('cStatus')))), tbody)));
-}
-
 /* ====================== الاستيراد ====================== */
 const IMP_COLS = [
   ['code', 'كود الموظف', 'Code', true], ['full_name', 'الاسم الكامل', 'Full name', true], ['branch', 'الفرع', 'Branch', true], ['hire_date', 'تاريخ التعيين', 'Hire date', true],
@@ -536,7 +533,7 @@ async function viewSettings() {
   // فترات التسجيل
   const mInp = inp({ type: 'month', value: today().slice(0, 7) });
   wrap.append(h('div', { class: 'card' }, h('h2', null, t('sPeriods')), h('div', { class: 'muted', style: 'margin-bottom:10px' }, t('sPeriodsNote')),
-    h('div', { class: 'pills' }, periods.map((p) => h('button', { type: 'button', class: 'pill' + (p.is_open ? ' on' : ''), 'aria-pressed': p.is_open ? 'true' : 'false', onClick: () => origRun(sb.from('periods').update({ is_open: !p.is_open }).eq('month', p.month)) }, p.month.slice(0, 7) + ': ' + (p.is_open ? t('sOpenTxt') : t('sClosedTxt'))))),
+    h('div', { class: 'pills' }, periods.map((p) => h('button', { type: 'button', class: 'pill' + (p.is_open ? ' on' : ''), 'aria-pressed': p.is_open ? 'true' : 'false', onClick: () => origRun(sb.from('periods').update({ is_open: !p.is_open }).eq('month', p.month)) }, monthLabel(p.month.slice(0, 7)) + ' (' + rangeLabel(p.month.slice(0, 7)) + '): ' + (p.is_open ? t('sOpenTxt') : t('sClosedTxt'))))),
     h('div', { class: 'row', style: 'margin-top:12px;align-items:end' }, h('div', { style: 'min-width:200px' }, field(t('sAddMonth'), mInp)),
       h('button', { class: 'btn', type: 'button', onClick: () => { if (!mInp.value) return; origRun(sb.from('periods').upsert({ month: mInp.value + '-01', is_open: true })); } }, t('sAddMonth')))));
 
@@ -550,7 +547,8 @@ async function viewSettings() {
       category: sel(Object.entries(catL), x.category), unit: sel(Object.entries(unitL), x.unit),
       attachment: sel([['none', t('attNone')], ['optional', t('attOpt')], ['required', t('attReq')]], x.attachment),
       balance_type: sel([['', t('balNone')], ['annual', t('balAnnual')], ['casual', t('balCasual')]], x.balance_type || ''),
-      count_window: sel([['month', t('winMonth')], ['year', t('winYear')]], x.count_window) };
+      count_window: sel([['month', t('winMonth')], ['year', t('winYear')]], x.count_window),
+      instructions: h('textarea', { class: 'inp', rows: '3', placeholder: t('instrPh') }, x.instructions || ''), instructions_en: h('textarea', { class: 'inp', rows: '3', dir: 'ltr' }, x.instructions_en || '') };
     const C = { needs_time: h('input', { type: 'checkbox', checked: x.needs_time }), needs_range: h('input', { type: 'checkbox', checked: x.needs_range }), count_repeats: h('input', { type: 'checkbox', checked: x.count_repeats }), is_active: h('input', { type: 'checkbox', checked: x.is_active }) };
     const dets = ty ? details.filter((d) => d.event_type_id === ty.id) : [];
     const detRows = dets.map((d) => {
@@ -563,13 +561,15 @@ async function viewSettings() {
       h('div', { class: 'between' }, h('h2', { style: 'margin:0' }, ty ? t('sEdit') + ': ' + nm(ty) : t('sAddType')), h('button', { class: 'btn2 sm', type: 'button', onClick: () => editor.replaceChildren() }, t('cancel'))),
       h('div', { class: 'grid' }, field(t('sNameAr'), E.name, { req: true }), field(t('sNameEn'), E.name_en), field(t('cat'), E.category), field(t('unit'), E.unit), field(t('attach'), E.attachment), field(t('balance'), E.balance_type), field(t('countWin'), E.count_window), field(t('sort'), E.sort)),
       h('div', { class: 'row' }, h('label', { class: 'check' }, C.needs_time, t('needsTime')), h('label', { class: 'check' }, C.needs_range, t('needsRange')), h('label', { class: 'check' }, C.count_repeats, t('countRep')), h('label', { class: 'check' }, C.is_active, t('active'))),
+      h('div', { class: 'grid' }, field(t('instrAr'), E.instructions, { full: true, note: t('instrNote') }), field(t('instrEn'), E.instructions_en, { full: true })),
       ty ? h('div', null, h('h2', null, t('sDetails')), h('div', { class: 'scroll' }, h('table', null, h('thead', null, h('tr', null, h('th', null, t('sNameAr')), h('th', null, t('sNameEn')), h('th', null, t('sDefault')), h('th', null, t('sUnitOverride')), h('th', null, t('active')))),
         h('tbody', null, detRows.map((r) => r.tr), h('tr', null, h('td', null, nd.n), h('td', null, nd.e), h('td', null, nd.v), h('td', { colspan: '2' }, h('button', { class: 'btn2 sm', type: 'button', onClick: () => { if (!nd.n.value.trim()) return; origRun(sb.from('event_details').insert({ event_type_id: ty.id, name: nd.n.value.trim(), name_en: nn(nd.e.value.trim()), default_value: Number(nd.v.value) || 0, sort: dets.length + 1 })); } }, t('sAddDetail')))))))) : null,
       h('div', null, h('button', { class: 'btn', type: 'button', onClick: async (ev) => {
         if (!E.name.value.trim()) { toast(t('fieldsMissing'), 'err'); return; }
         ev.target.disabled = true;
         const row = { name: E.name.value.trim(), name_en: nn(E.name_en.value.trim()), category: E.category.value, unit: E.unit.value, attachment: E.attachment.value, balance_type: nn(E.balance_type.value), count_window: E.count_window.value, sort: Number(E.sort.value) || 0,
-          needs_time: C.needs_time.checked, needs_range: C.needs_range.checked, count_repeats: C.count_repeats.checked, is_active: C.is_active.checked };
+          needs_time: C.needs_time.checked, needs_range: C.needs_range.checked, count_repeats: C.count_repeats.checked, is_active: C.is_active.checked,
+          instructions: nn(E.instructions.value.trim()), instructions_en: nn(E.instructions_en.value.trim()) };
         try {
           if (ty) { await q(sb.from('event_types').update(row).eq('id', ty.id)); for (const r of detRows) { const v = r.get(); await q(sb.from('event_details').update(v).eq('id', r.d.id)); } }
           else await q(sb.from('event_types').insert(row));
@@ -720,6 +720,7 @@ async function viewRegister() {
   const attWrap = h('div', { style: 'grid-column:1/-1' }, field(t('fAttach'), fileInp), attNote);
   const fromLbl = h('label', { class: 'lbl', for: 'r-from' }); dFrom.id = 'r-from';
   const warnBox = h('div', { style: 'display:flex;flex-direction:column;gap:8px' });
+  const instrBox = h('div', { class: 'box instr', style: 'display:none' });
   const submit = h('button', { class: 'btn', type: 'button' }, editId ? t('submitEdit') : t('submitNew'));
 
   const curDetail = () => details.find((d) => d.id === Number(detSel.value));
@@ -740,6 +741,7 @@ async function viewRegister() {
     attWrap.style.display = ty && ty.attachment !== 'none' ? '' : 'none';
     attNote.textContent = ty ? [(ty.attachment === 'required' ? t('attReqd') : t('attOptl')), t('attShrink'), ev && ev.attachment ? t('attHas') : ''].filter(Boolean).join(' ') : '';
     fromLbl.textContent = ty && ty.needs_range ? t('fFromDate') : t('fDate');
+    { const txt = ty ? (L() ? ty.instructions_en || ty.instructions : ty.instructions) : ''; instrBox.style.display = txt ? '' : 'none'; instrBox.replaceChildren(...(txt ? [h('div', { style: 'font-weight:800;margin-bottom:4px' }, t('instrTitle')), h('div', { style: 'white-space:pre-line' }, txt)] : [])); }
     sugLabel.textContent = !ty ? t('fSugOther') : ty.category === 'entitlement' ? t('fSugEnt') : ty.category === 'leave' ? t('fSugLeave') : ty.category === 'deduction' ? t('fSugDed') : t('fSugOther');
     unitEl.textContent = unitName(curUnit());
     // المدة
@@ -754,14 +756,14 @@ async function viewRegister() {
   let checkSeq = 0;
   const checks = async () => {
     const my = ++checkSeq; const ty = typeOf(typeSel.value); const empId = Number(empSel.value); const out = [];
-    const m = monthKey(dFrom.value);
+    const m = cycleKey(dFrom.value);
     if (dFrom.value && !openSet.has(m)) out.push(h('div', { class: 'box ' + (isAdmin() ? 'warn' : 'err') }, isAdmin() ? t('wClosedAdmin') : t('wClosed')));
     if (ty && ty.needs_range && dTo.value && dTo.value < dFrom.value) out.push(h('div', { class: 'box err' }, t('wDates')));
     if (ty && empId && dFrom.value) {
       try {
-        const winStart = ty.count_window === 'year' ? dFrom.value.slice(0, 4) + '-01-01' : m + '-01';
+        const winStart = ty.count_window === 'year' ? dFrom.value.slice(0, 4) + '-01-01' : bounds(m).s;
         const nextM = (() => { const [y, mm] = m.split('-').map(Number); return mm === 12 ? (y + 1) + '-01-01' : y + '-' + String(mm + 1).padStart(2, '0') + '-01'; })();
-        const winEnd = ty.count_window === 'year' ? (Number(dFrom.value.slice(0, 4)) + 1) + '-01-01' : nextM;
+        const winEnd = ty.count_window === 'year' ? (Number(dFrom.value.slice(0, 4)) + 1) + '-01-01' : addDays(bounds(m).e, 1);
         const same = await q(sb.from('events').select('id,date_from,status').eq('employee_id', empId).eq('event_type_id', ty.id).neq('status', 'rejected').gte('date_from', winStart).lt('date_from', winEnd));
         const others = same.filter((x) => x.id !== editId);
         if (others.some((x) => x.date_from === dFrom.value)) out.push(h('div', { class: 'box warn' }, t('wDup')));
@@ -806,6 +808,19 @@ async function viewRegister() {
   tFrom.addEventListener('change', () => changed(false)); tTo.addEventListener('change', () => changed(false));
   sug.addEventListener('change', () => checks());
   layout(); if (!ev) resetSuggestion(); checks();
+  // حفظ ما كُتب في النموذج عند الانتقال لصفحة أخرى (حتى تحديث الصفحة)
+  const formEls = { br: brSel, emp: empSel, type: typeSel, det: detSel, dFrom, dTo, tFrom, tTo, sug, notes };
+  const dKey = editId ? 'ev' + editId : 'new';
+  const saveDraft = () => { S.cache.regDraft = { key: dKey, v: Object.fromEntries(Object.entries(formEls).map(([k, el]) => [k, el.value])) }; };
+  const dr = S.cache.regDraft;
+  if (dr && dr.key === dKey) {
+    const v = dr.v;
+    if (isAdmin() && !editId && v.br) brSel.value = v.br;
+    fillEmps(); empSel.value = v.emp; typeSel.value = v.type; fillDetails(Number(v.det) || null); if (v.det) detSel.value = v.det;
+    dFrom.value = v.dFrom; dTo.value = v.dTo; tFrom.value = v.tFrom; tTo.value = v.tTo; sug.value = v.sug; notes.value = v.notes;
+    layout(); checks();
+  }
+  Object.values(formEls).forEach((el) => { el.addEventListener('input', saveDraft); el.addEventListener('change', saveDraft); });
 
   submit.addEventListener('click', async () => {
     const ty = typeOf(typeSel.value);
@@ -830,6 +845,7 @@ async function viewRegister() {
       const row = { employee_id: Number(empSel.value), branch_id: branchId, event_type_id: ty.id, detail_id: detSel.value ? Number(detSel.value) : null,
         date_from: dFrom.value, date_to: ty.needs_range ? dTo.value : dFrom.value, time_from: ty.needs_time ? tFrom.value : null, time_to: ty.needs_time ? tTo.value : null,
         suggested: Number(sug.value), manager_notes: nn(notes.value.trim()), attachment };
+      S.cache.regDraft = null;
       if (editId) { if (!isAdmin()) row.status = 'pending'; await q(sb.from('events').update(row).eq('id', editId)); toast(t('editOk')); go('events'); }
       else { await q(sb.from('events').insert(row)); toast(t('recOk')); S.cache.regLastEmp = row.employee_id; go('register'); }
     } catch (ex) { fail(ex); submit.disabled = false; }
@@ -837,8 +853,9 @@ async function viewRegister() {
 
   const openList = [...openSet].sort();
   return h('div', { style: 'display:flex;flex-direction:column;gap:16px;max-width:900px' },
-    h('div', null, h('h1', null, editId ? t('regEdit') : t('regTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, openList.length ? t('openMonths') + openList.join(' · ') : t('noneOpen'))),
+    h('div', null, h('h1', null, editId ? t('regEdit') : t('regTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, openList.length ? t('openMonths') + openList.map((k) => monthLabel(k) + ' (' + rangeLabel(k) + ')').join(' · ') : t('noneOpen'))),
     ev && ev.status === 'clarify' && ev.review_note ? h('div', { class: 'box warn' }, t('noteP') + ev.review_note) : null,
+    instrBox,
     h('div', { class: 'card grid' },
       isAdmin() ? field(t('cBranch'), brSel) : null,
       field(t('fEmployee'), empSel, { req: true }), field(t('fEventType'), typeSel, { req: true }), field(t('fDetail'), detSel),
@@ -847,11 +864,11 @@ async function viewRegister() {
       h('div', null, sugLabel, h('div', { class: 'row', style: 'flex-wrap:nowrap' }, sug, unitEl), h('div', { class: 'muted', style: 'margin-top:4px' }, t('fSugNote')), sugHint),
       field(t('fMgrNotes'), notes, { full: true }), attWrap),
     warnBox,
-    h('div', { class: 'row' }, submit, h('button', { class: 'btn2', type: 'button', onClick: () => (editId ? go('events') : render()) }, editId ? t('cancel') : t('clearForm'))));
+    h('div', { class: 'row' }, submit, h('button', { class: 'btn2', type: 'button', onClick: () => { S.cache.regDraft = null; if (editId) go('events'); else render(); } }, editId ? t('cancel') : t('clearForm'))));
 }
 
 async function viewEvents() {
-  const f = S.cache.evf || (S.cache.evf = { status: can('approve_events') ? 'pending' : 'all', month: today().slice(0, 7), branch: '', type: '', text: '' });
+  const f = S.cache.evf || (S.cache.evf = { status: can('approve_events') ? 'pending' : 'all', month: cycleKey(today()), branch: '', type: '', text: '' });
   const types = await q(sb.from('event_types').select('id,name,name_en').order('sort'));
   const selected = new Set();
   const listWrap = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
@@ -870,7 +887,7 @@ async function viewEvents() {
     listWrap.replaceChildren(h('div', { class: 'muted' }, t('loading')));
     try {
       let qq = sb.from('v_events').select('*').order('date_from', { ascending: false }).order('id', { ascending: false });
-      if (f.month) { const [y, m] = f.month.split('-').map(Number); const next = m === 12 ? (y + 1) + '-01-01' : y + '-' + String(m + 1).padStart(2, '0') + '-01'; qq = qq.gte('date_from', f.month + '-01').lt('date_from', next); }
+      if (f.month) qq = qq.gte('date_from', bounds(f.month).s).lte('date_from', bounds(f.month).e);
       if (f.status !== 'all') qq = qq.eq('status', f.status);
       if (f.branch) qq = qq.eq('branch_id', Number(f.branch));
       if (f.type) qq = qq.eq('event_type_id', Number(f.type));
@@ -888,7 +905,7 @@ async function viewEvents() {
       const unit = unitName(r.unit); const open = r.status === 'pending' || r.status === 'clarify';
       const typeName = L() ? r.event_type_name_en || r.event_type_name : r.event_type_name;
       const detName = L() ? r.detail_name_en || r.detail_name : r.detail_name;
-      const evCell = h('td', null, h('div', { style: 'font-weight:600' }, typeName), detName ? h('div', { class: 'muted' }, detName) : null,
+      const evCell = h('td', null, h('div', { style: 'font-weight:600' }, link('#event/' + r.id, null, typeName)), detName ? h('div', { class: 'muted' }, detName) : null,
         r.time_from ? h('div', { class: 'muted', dir: 'ltr', style: 'text-align:start' }, tm(r.time_from) + ' - ' + tm(r.time_to)) : null,
         r.repeat_no > 1 ? h('div', { style: 'font-size:12px;font-weight:700;color:var(--warn-ink)' }, t('repeatN', { n: r.repeat_no })) : null,
         r.manager_notes ? h('div', { class: 'muted' }, t('byMgr') + r.manager_notes) : null);
@@ -897,7 +914,7 @@ async function viewEvents() {
       if (rev && open) {
         const fi = inp({ type: 'number', min: '0', step: '0.25', value: r.final ?? r.suggested, style: 'max-width:100px', 'aria-label': t('cFinal') });
         fi.addEventListener('input', () => finals.set(r.id, fi.value));
-        finalCell = h('div', { class: 'row', style: 'flex-wrap:nowrap' }, fi, h('span', { class: 'muted' }, unit));
+        finalCell = h('div', { class: 'row', style: 'flex-wrap:nowrap' }, fi, h('span', { class: 'muted ' + (r.category === 'deduction' ? 'sgt-minus' : r.category === 'entitlement' ? 'sgt-plus' : '') }, unit + (r.category === 'deduction' ? ' ' + t('sgMinus') : r.category === 'entitlement' ? ' ' + t('sgPlus') : '')));
         const actBox = h('div', { class: 'row' });
         const normal = () => actBox.replaceChildren(
           h('button', { class: 'btn sm', type: 'button', onClick: () => act(sb.from('events').update({ status: 'approved', final: Number(fi.value === '' ? r.suggested : fi.value) }).eq('id', r.id), t('approved')) }, t('approve')),
@@ -910,7 +927,7 @@ async function viewEvents() {
           } }, t('reject')));
         normal(); actions.push(actBox);
       } else {
-        finalCell = r.status === 'rejected' ? '—' : (r.final != null ? Number(r.final) + ' ' + unit : '—');
+        finalCell = r.status === 'approved' ? signed(r.category, r.final, r.unit) : '—';
         if (admin && r.status === 'approved') actions.push(h('button', { class: 'btn2 sm', type: 'button', onClick: () => { const v = prompt(t('editFinalAsk'), r.final); if (v === null || v.trim() === '' || isNaN(Number(v))) return; act(sb.from('events').update({ final: Number(v) }).eq('id', r.id), t('saved')); } }, t('editFinal')));
         if (!admin && !open) actions.push(h('span', { class: 'muted' }, t('stLocked')));
       }
@@ -918,13 +935,13 @@ async function viewEvents() {
       if (admin) actions.push(h('button', { class: 'btnd sm', type: 'button', onClick: () => { if (confirm(t('confirmDelEv'))) act(sb.from('events').delete().eq('id', r.id), t('delOk')); } }, t('delBtn')));
       if (r.attachment) actions.push(h('button', { class: 'btn2 sm', type: 'button', onClick: async () => { const w = window.open('', '_blank'); const s = await sb.storage.from('attachments').createSignedUrl(r.attachment, 300); if (s.error) { if (w) w.close(); fail(s.error); } else if (w) w.location = s.data.signedUrl; else location.href = s.data.signedUrl; } }, t('viewAtt')));
       const cb = rev && r.status === 'pending' ? h('input', { type: 'checkbox', 'aria-label': t('cSel'), style: 'width:20px;height:20px', onChange: (e) => { if (e.target.checked) selected.add(r.id); else selected.delete(r.id); setBulk(); } }) : null;
-      return h('tr', null, rev ? h('td', null, cb) : null,
+      return rowLink(h('tr', null, rev ? h('td', null, cb) : null,
         h('td', null, h('div', { style: 'font-weight:600' }, r.employee_name), h('div', { class: 'muted' }, t('cCode') + ' ' + r.employee_code)),
         admin ? h('td', null, L() ? r.branch_name_en || r.branch_name : r.branch_name) : null,
-        evCell, h('td', { style: 'white-space:nowrap' }, dateTxt), h('td', { style: 'white-space:nowrap' }, r.suggested != null ? Number(r.suggested) + ' ' + unit : '—'),
+        evCell, h('td', { style: 'white-space:nowrap' }, dateTxt), h('td', { style: 'white-space:nowrap' }, signed(r.category, r.suggested, r.unit)),
         h('td', null, finalCell),
         h('td', null, statusChip(r.status), r.review_note ? h('div', { class: 'muted', style: 'margin-top:4px;max-width:220px' }, (r.status === 'rejected' ? t('reasonP') : t('noteP')) + r.review_note) : null),
-        h('td', null, h('div', { class: 'row' }, actions)));
+        h('td', null, h('div', { class: 'row' }, actions))), '#event/' + r.id);
     });
     return h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:' + (admin ? 1100 : 860) + 'px' }, h('thead', null, head), h('tbody', null, body.length ? body : h('tr', null, h('td', { colspan: '9', class: 'muted', style: 'text-align:center;padding:24px' }, t('noRows'))))));
   };
@@ -1026,29 +1043,6 @@ function xlsxWrite(sheets, fileName) {
   XLSX.writeFile(wb, fileName);
 }
 
-/* ---------- الإطار ---------- */
-function shell(content) {
-  const items = [['home', t('nHome')]];
-  if (can('approve_events')) items.push(['events', t('nReview'), S.pendingCount]);
-  if (can('register_events')) items.push(['register', t('nReg')]);
-  if (!can('approve_events') && canEvents()) items.push(['events', t('nEvents'), S.pendingCount]);
-  if (canSched()) items.push(['schedule', t('nSchedule')]);
-  if (can('view_employees')) items.push(['employees', t('nEmployees')]);
-  if (can('view_reports')) items.push(['reports', t('nReports')]);
-  if (isAdmin()) items.push(['import', t('nImport')], ['users', t('nUsers')], ['audit', t('nAudit')], ['settings', t('nSettings')]);
-  items.push(['account', t('nAccount')]);
-  const myBranch = S.branches.find((b) => b.id === S.profile.branch_id);
-  return h('div', null,
-    h('header', { class: 'top' },
-      h('div', { class: 'row', style: 'gap:12px;flex-wrap:nowrap;min-width:0' }, h('img', { src: LOGO, alt: 'NoVoDux Academy', class: 'brand-logo' }),
-        h('div', { style: 'min-width:0' }, h('div', { class: 'brand-name' }, 'NoVoDux Academy'), h('div', { class: 'brand-sub' }, t('app') + ' · ' + S.profile.full_name + ' · ' + (isAdmin() ? t('admin') : t('manager') + ' ' + bName(myBranch))))),
-      h('div', { class: 'row' }, chromeButtons(), h('button', { class: 'btn2 sm', type: 'button', onClick: async () => { await sb.auth.signOut(); S.session = null; S.profile = null; location.hash = ''; render(); } }, t('logout')))),
-    h('div', { class: 'layout' },
-      h('nav', { class: 'side', 'aria-label': 'menu' },
-        items.map(([r, label, badge]) => h('button', { class: 'nav-btn' + (S.route === r ? ' active' : ''), type: 'button', 'aria-current': S.route === r ? 'page' : null, onClick: () => go(r) }, h('span', null, label), badge ? h('span', { class: 'badge' }, badge) : null))),
-      h('main', null, content)));
-}
-
 /* ---------- الموظف: عرض + تعديل ---------- */
 async function viewEmployee() {
   const isNew = S.param === 'new';
@@ -1106,14 +1100,16 @@ async function viewEmployee() {
   if (!editing) {
     const kv = (k, v) => h('div', { class: 'kv' }, h('span', { class: 'muted' }, k), h('b', null, v == null || v === '' ? '—' : v));
     const extraNames = extras.map((x) => brOf(x.branch_id)).join(L() ? ', ' : '، ');
-    const monthInp = inp({ type: 'month', value: S.cache.empMonth || today().slice(0, 7), 'aria-label': t('repMonth'), style: 'max-width:200px' });
+    const monthInp = inp({ type: 'month', value: S.cache.empMonth || cycleKey(today()), 'aria-label': t('repMonth'), style: 'max-width:200px' });
+    const rangeEl = h('span', { class: 'muted' });
     const monthBox = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
     let monthRows = [];
     const loadMonth = async () => {
       S.cache.empMonth = monthInp.value; const m = monthInp.value;
       monthBox.replaceChildren(h('div', { class: 'muted' }, t('loading')));
       try {
-        monthRows = await q(sb.from('v_events').select('*').eq('employee_id', id).gte('date_from', monthStart(m)).lt('date_from', monthNext(m)).order('date_from'));
+        rangeEl.textContent = rangeLabel(m);
+        monthRows = await q(sb.from('v_events').select('*').eq('employee_id', id).gte('date_from', bounds(m).s).lte('date_from', bounds(m).e).order('date_from'));
         const tot = {}; BUCKETS.forEach((b) => (tot[b] = 0));
         monthRows.filter((r) => r.status === 'approved').forEach((r) => { const b = bucketOf(r.category, r.unit, r.balance_type); if (tot[b] != null) tot[b] += Number(r.final || 0); });
         const shown = BUCKETS.filter((b) => tot[b]);
@@ -1128,7 +1124,7 @@ async function viewEmployee() {
     monthInp.addEventListener('change', loadMonth); loadMonth();
     const exportMonth = () => {
       const m = monthInp.value;
-      const rows = [[e.full_name + ' (' + e.code + ')', '', '', '', '', '', ''], [t('repMonth') + ': ' + m, '', '', '', '', '', ''], [],
+      const rows = [[e.full_name + ' (' + e.code + ')', '', '', '', '', '', ''], [t('repMonth') + ': ' + monthLabel(m) + ' (' + rangeLabel(m) + ')', '', '', '', '', '', ''], [],
         [t('cDate'), t('cEvent'), t('fDetail'), t('cSug'), t('cFinal'), t('unit'), t('cStatus')],
         ...monthRows.map((r) => [fmtDate(r.date_from) + (r.date_to !== r.date_from ? ' - ' + fmtDate(r.date_to) : ''), L() ? r.event_type_name_en || r.event_type_name : r.event_type_name, (L() ? r.detail_name_en || r.detail_name : r.detail_name) || '', r.suggested != null ? Number(r.suggested) : '', r.status === 'approved' && r.final != null ? Number(r.final) : '', unitName(r.unit), ({ pending: t('fsPending'), clarify: t('fsClarify'), approved: t('fsApproved'), rejected: t('fsRejected') })[r.status]])];
       xlsxWrite([{ name: e.code, rows, widths: [22, 24, 20, 10, 12, 8, 14] }], (L() ? 'employee-' : 'موظف-') + e.code + '_' + m + '.xlsx');
@@ -1144,7 +1140,7 @@ async function viewEmployee() {
         kv(t('fPhone'), e.phone), kv(t('fNid'), e.national_id), kv(t('fBirth'), e.birth_date ? fmtDate(e.birth_date) : '—'), kv(t('fFinger'), e.fingerprint_code),
         can('view_salary') ? kv(t('fSalary'), salaryRow ? Number(salaryRow.salary).toLocaleString('en-US') : '—') : null, kv(t('fAddr'), e.address), kv(t('fNotes'), e.notes))),
       balanceCard(id),
-      h('div', { class: 'card' }, h('div', { class: 'between', style: 'margin-bottom:12px' }, h('h2', { style: 'margin:0' }, t('empMonths')), h('div', { class: 'row' }, monthInp, h('button', { class: 'btn2 sm', type: 'button', onClick: exportMonth }, t('exportMonth')))), monthBox),
+      h('div', { class: 'card' }, h('div', { class: 'between', style: 'margin-bottom:12px' }, h('h2', { style: 'margin:0' }, t('empMonths')), h('div', { class: 'row' }, monthInp, rangeEl, h('button', { class: 'btn2 sm', type: 'button', onClick: exportMonth }, t('exportMonth')))), monthBox),
       statusCard(), transferCard());
   }
 
@@ -1166,6 +1162,17 @@ async function viewEmployee() {
   const transferDate = inp({ type: 'date', value: today() });
   const transferWrap = h('div', { style: 'display:none;grid-column:1/-1' }, h('div', { class: 'box warn', style: 'margin-bottom:8px' }, t('transferNote')), field(t('fTransferDate'), transferDate));
   F.primary_branch_id.addEventListener('change', () => { F.department_id.replaceChildren(...deptOpts().map(([v, l]) => h('option', { value: v }, l))); transferWrap.style.display = !isNew && String(F.primary_branch_id.value) !== String(e.primary_branch_id) ? '' : 'none'; });
+  // مسودة التعديل: تبقى عند الانتقال لصفحة أخرى حتى تحديث الصفحة
+  const eKey = isNew ? 'new' : String(id);
+  const allIn = () => [...Object.values(F), transferDate, ...(salary ? [salary] : [])];
+  const checks2 = () => [...restBox.querySelectorAll('input'), ...(extraBox ? extraBox.querySelectorAll('input') : [])];
+  const saveDraft = () => { S.cache.empDraft = { key: eKey, v: allIn().map((x) => x.value), c: checks2().map((x) => x.checked) }; };
+  if (S.cache.empDraft && S.cache.empDraft.key === eKey) {
+    const d = S.cache.empDraft; allIn().forEach((x, k) => { if (d.v[k] != null) x.value = d.v[k]; }); checks2().forEach((x, k) => { if (d.c[k] != null) x.checked = d.c[k]; });
+    F.department_id.replaceChildren(...deptOpts().map(([v, l]) => h('option', { value: v }, l))); F.department_id.value = d.v[Object.keys(F).indexOf('department_id')] || '';
+    transferWrap.style.display = !isNew && String(F.primary_branch_id.value) !== String(e.primary_branch_id) ? '' : 'none';
+  }
+  [...allIn(), ...checks2()].forEach((x) => { x.addEventListener('input', saveDraft); x.addEventListener('change', saveDraft); });
   const save = async (btn) => {
     const val = (k) => (F[k].value ?? '').toString().trim();
     if (!val('code') || !val('full_name') || !val('hire_date') || !val('job_title') || !F.primary_branch_id.value) { toast(t('fieldsMissing'), 'err'); return; }
@@ -1195,10 +1202,10 @@ async function viewEmployee() {
         if (del.length) await q(sb.from('employee_branches').delete().eq('employee_id', empId).in('branch_id', del));
         if (add.length) await q(sb.from('employee_branches').insert(add.map((b) => ({ employee_id: empId, branch_id: b }))));
       }
-      S.cache.editEmp = null; toast(t('saved')); go('employee', empId);
+      S.cache.editEmp = null; S.cache.empDraft = null; toast(t('saved')); go('employee', empId);
     } catch (ex) { fail(ex); btn.disabled = false; }
   };
-  const cancel = () => { S.cache.editEmp = null; if (isNew) go('employees'); else render(); };
+  const cancel = () => { S.cache.editEmp = null; S.cache.empDraft = null; if (isNew) go('employees'); else render(); };
   return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
     h('div', { class: 'between' }, h('div', null, h('h1', null, isNew ? t('empNew') : t('editEmp') + ': ' + e.full_name), isNew ? null : h('div', { class: 'muted' }, t('cCode') + ' ' + e.code)),
       h('div', { class: 'row' }, h('button', { class: 'btn2', type: 'button', onClick: cancel }, t('cancel')), h('button', { class: 'btn', type: 'button', onClick: (ev) => save(ev.currentTarget) }, t('save')))),
@@ -1246,11 +1253,10 @@ async function viewUsers() {
 }
 
 /* ---------- خطة الأسبوع ---------- */
-async function viewSchedule() {
-  const f = S.cache.sch || (S.cache.sch = (() => { const td = today(); const back = (wday(td) + 1) % 7; const from = addDays(td, -back); return { month: td.slice(0, 7), from, to: addDays(from, 6), branch: isAdmin() ? '' : String(S.profile.branch_id), dept: '', emp: '' }; })());
-  if (!isAdmin()) f.branch = String(S.profile.branch_id);
-  if (isAdmin() && !f.branch) f.branch = String((S.branches.find((b) => b.is_active) || S.branches[0] || {}).id || '');
-  const editable = isAdmin() || can('manage_schedules');
+async function viewPlanGrid(plan, header) {
+  const f = S.cache.plg && S.cache.plg.id === plan.id ? S.cache.plg : (S.cache.plg = { id: plan.id, from: plan.date_from, to: plan.date_to, branch: String(plan.branch_id), dept: plan.department_id ? String(plan.department_id) : '', emp: '' });
+  const drafts = S.cache.planDraft || (S.cache.planDraft = {}); const draft = drafts[plan.id] || (drafts[plan.id] = {});
+  const editable = isAdmin() || (can('manage_schedules') && plan.status === 'draft');
   const [depts, shifts, holidays, empsAll, extras] = await Promise.all([
     q(sb.from('departments').select('*').order('name')), q(sb.from('shift_templates').select('*').order('sort')), q(sb.from('holidays').select('*')),
     q(sb.from('employees').select('id,code,full_name,primary_branch_id,department_id,work_hours,rest_days,status').eq('status', 'active')), q(sb.from('employee_branches').select('employee_id,branch_id'))]);
@@ -1258,23 +1264,13 @@ async function viewSchedule() {
   const activeShifts = shifts.filter((s) => s.is_active);
   const wrap = h('div', { style: 'display:flex;flex-direction:column;gap:14px' });
   const gridBox = h('div');
-  // التحكم
-  const monthInp = inp({ type: 'month', value: f.month, 'aria-label': t('schMonth') });
-  const fromInp = inp({ type: 'date', value: f.from }), toInp = inp({ type: 'date', value: f.to });
-  const weeksBox = h('div', { class: 'pills' });
-  const drawWeeks = () => {
-    const m = monthInp.value; if (!m) { weeksBox.replaceChildren(); return; }
-    const first = monthStart(m), end = addDays(monthNext(m), -1); let s = addDays(first, -((wday(first) + 1) % 7)); const chips = [];
-    while (s <= end) { const e2 = addDays(s, 6); const ss = s; chips.push(h('button', { type: 'button', class: 'pill' + (f.from === ss && f.to === e2 ? ' on' : ''), onClick: () => { if (dirtyCount() && !confirm(t('schUnsaved'))) return; f.from = ss; f.to = e2; fromInp.value = ss; toInp.value = e2; drawWeeks(); load(); } }, h('span', { dir: 'ltr' }, fmtDate(ss).slice(0, 5) + ' - ' + fmtDate(e2).slice(0, 5)))); s = addDays(s, 7); }
-    weeksBox.replaceChildren(...chips);
-  };
-  const brSel = isAdmin() ? sel(S.branches.filter((b) => b.is_active).map((b) => [b.id, bName(b)]), f.branch, { 'aria-label': t('cBranch') }) : null;
   const deptSel = h('select', { class: 'inp', 'aria-label': t('schDept') });
   const empSel = h('select', { class: 'inp', 'aria-label': t('schEmp') });
   const branchEmps = () => { const b = Number(f.branch); const ex = new Set(extras.filter((x) => x.branch_id === b).map((x) => x.employee_id)); return empsAll.filter((e) => e.primary_branch_id === b || ex.has(e.id)).sort((a, c) => cmpCode(a.code, c.code)); };
   const fillFilters = () => {
     const b = Number(f.branch);
-    deptSel.replaceChildren(...[['', t('allDepts')], ['none', t('noDept')], ...depts.filter((d) => d.branch_id === b && d.is_active).map((d) => [String(d.id), nm(d)])].map(([v, l]) => h('option', { value: v, selected: v === f.dept }, l)));
+    if (plan.department_id) deptSel.replaceChildren(h('option', { value: String(plan.department_id) }, deptOf(plan.department_id)));
+    else deptSel.replaceChildren(...[['', t('allDepts')], ['none', t('noDept')], ...depts.filter((d) => d.branch_id === b && d.is_active).map((d) => [String(d.id), nm(d)])].map(([v, l]) => h('option', { value: v, selected: v === f.dept }, l)));
     const list = branchEmps().filter((e) => !f.dept || (f.dept === 'none' ? !e.department_id : String(e.department_id) === f.dept));
     if (f.emp && !list.some((e) => String(e.id) === f.emp)) f.emp = '';
     empSel.replaceChildren(h('option', { value: '' }, t('allEmps')), ...list.map((e) => h('option', { value: e.id, selected: String(e.id) === f.emp }, e.code + ' - ' + e.full_name)));
@@ -1285,7 +1281,10 @@ async function viewSchedule() {
   const same = (a, b) => JSON.stringify(a || null) === JSON.stringify(b || null);
   const dirtyCount = () => { let n = 0; const keys = new Set([...cells.keys(), ...orig.keys()]); keys.forEach((k) => { if (!same(cells.get(k), orig.get(k))) n++; }); return n; };
   const dirtyNote = h('div', { class: 'box warn', style: 'display:none' }, t('schUnsaved'));
-  const markDirty = () => { dirtyNote.style.display = dirtyCount() ? '' : 'none'; };
+  const markDirty = () => {
+    new Set([...cells.keys(), ...orig.keys()]).forEach((k) => { if (same(cells.get(k), orig.get(k))) delete draft[k]; else draft[k] = cells.get(k) || null; });
+    dirtyNote.style.display = dirtyCount() ? '' : 'none';
+  };
   const leaveOn = (eid, d) => leaves.find((x) => x.employee_id === eid && x.date_from <= d && x.date_to >= d);
 
   const cellEl = (e, d) => {
@@ -1344,9 +1343,6 @@ async function viewSchedule() {
     draw(); markDirty();
   };
   const load = async () => {
-    f.month = monthInp.value; f.from = fromInp.value; f.to = toInp.value; if (brSel) f.branch = brSel.value;
-    const n = f.from && f.to ? daysBetween(f.from, f.to) : 0;
-    if (!n || n > 31) { gridBox.replaceChildren(h('div', { class: 'box err' }, t('schRange'))); return; }
     gridBox.replaceChildren(h('div', { class: 'muted' }, t('loading')));
     try {
       days = []; for (let d = f.from; d <= f.to; d = addDays(d, 1)) days.push(d);
@@ -1357,6 +1353,8 @@ async function viewSchedule() {
         ids.length ? q(sb.from('v_events').select('employee_id,date_from,date_to,category,status').in('employee_id', ids).eq('status', 'approved').eq('category', 'leave').lte('date_from', f.to).gte('date_to', f.from)) : []]);
       leaves = lv; cells = new Map(); orig = new Map();
       rows.forEach((r) => { const v = r.is_off ? { off: true } : { off: false, shift_id: r.shift_id, start: tm(r.start_time), end: tm(r.end_time) }; cells.set(key(r.employee_id, r.work_date), v); orig.set(key(r.employee_id, r.work_date), Object.assign({}, v)); });
+      const ids2 = new Set(emps.map((e) => e.id));
+      Object.entries(draft).forEach(([k, v]) => { const [eid, d] = k.split('|'); if (!ids2.has(Number(eid)) || d < f.from || d > f.to) return; if (v) cells.set(k, Object.assign({}, v)); else cells.delete(k); });
       draw(); markDirty();
     } catch (ex) { gridBox.replaceChildren(h('div', { class: 'box err' }, t('errGeneric') + ex.message)); }
   };
@@ -1374,7 +1372,7 @@ async function viewSchedule() {
     try {
       if (ups.length) await q(sb.from('schedules').upsert(ups, { onConflict: 'employee_id,work_date' }));
       for (const x of dels) await q(sb.from('schedules').delete().eq('employee_id', x.eid).eq('work_date', x.d));
-      toast(t('schSaved', { n: ups.length + dels.length })); await load();
+      ups.forEach((u) => delete draft[key(u.employee_id, u.work_date)]); dels.forEach((x) => delete draft[key(x.eid, x.d)]); toast(t('schSaved', { n: ups.length + dels.length })); await load();
     } catch (ex) { fail(ex); }
     btn.disabled = false;
   };
@@ -1397,26 +1395,20 @@ async function viewSchedule() {
   const exportX = () => {
     const header = [t('cCode'), t('cName'), ...days.map((d) => dayName(wday(d)) + ' ' + fmtDate(d).slice(0, 5)), t('schTotal')];
     const rows = emps.map((e) => { let sum = 0; const cs = days.map((d) => { const v = cells.get(key(e.id, d)); if (!v) return ''; if (v.off) return t('schOff'); sum += shiftHours(v.start, v.end); const sh = shifts.find((x) => x.id === v.shift_id); return (sh ? nm(sh) + ' ' : '') + v.start + '-' + v.end; }); return [e.code, e.full_name, ...cs, r2(sum)]; });
-    xlsxWrite([{ name: t('schTitle'), rows: [[t('schTitle') + ' — ' + bName(S.branches.find((b) => String(b.id) === f.branch))], [fmtDate(f.from) + ' - ' + fmtDate(f.to)], [], header, ...rows], widths: [8, 26, ...days.map(() => 18), 10] }], (L() ? 'weekly-plan_' : 'خطة-الأسبوع_') + f.from + '_' + f.to + '.xlsx');
+    xlsxWrite([{ name: t('schTitle'), rows: [[planTitle(plan, depts)], [monthLabel(planMonth(plan)) + ' · ' + fmtDate(f.from) + ' - ' + fmtDate(f.to)], [], header, ...rows], widths: [8, 26, ...days.map(() => 18), 10] }], (L() ? 'weekly-plan_' : 'خطة-الأسبوع_') + bName(S.branches.find((b) => String(b.id) === f.branch)).replace(/[\[\]\s]+/g, '-') + '_' + f.from + '_' + f.to + '.xlsx');
   };
   // الأحداث
-  monthInp.addEventListener('change', () => { if (dirtyCount() && !confirm(t('schUnsaved'))) { monthInp.value = f.month; return; } f.month = monthInp.value; const first = monthStart(f.month); f.from = addDays(first, -((wday(first) + 1) % 7)); f.to = addDays(f.from, 6); fromInp.value = f.from; toInp.value = f.to; drawWeeks(); load(); });
-  fromInp.addEventListener('change', () => { if (toInp.value < fromInp.value) toInp.value = addDays(fromInp.value, 6); drawWeeks(); load(); });
-  toInp.addEventListener('change', () => { drawWeeks(); load(); });
-  if (brSel) brSel.addEventListener('change', () => { f.branch = brSel.value; f.dept = ''; f.emp = ''; fillFilters(); load(); });
   deptSel.addEventListener('change', () => { f.dept = deptSel.value; fillFilters(); load(); });
   empSel.addEventListener('change', () => { f.emp = empSel.value; load(); });
-  fillFilters(); drawWeeks(); load();
+  fillFilters(); load();
   const saveBtn = h('button', { class: 'btn', type: 'button', onClick: (ev) => saveAll(ev.currentTarget) }, t('schSave'));
   wrap.append(...[
-    h('div', { class: 'between' }, h('div', null, h('h1', null, t('schTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, t('schSub'))),
-      h('div', { class: 'row no-print' }, h('button', { class: 'btn2', type: 'button', onClick: exportX }, t('schExcel')), h('button', { class: 'btn2', type: 'button', onClick: () => window.print() }, t('schPrint')), editable ? saveBtn : null)),
-    editable ? null : h('div', { class: 'box ok' }, t('schReadOnly')),
+    header(editable ? saveBtn : null, exportX, dirtyCount),
+    editable ? null : h('div', { class: 'box ok no-print' }, plan.status === 'approved' && can('manage_schedules') ? t('plLocked') : t('schReadOnly')),
     h('div', { class: 'card no-print', style: 'display:flex;flex-direction:column;gap:12px' },
-      h('div', { class: 'grid' }, field(t('schMonth'), monthInp), field(t('schFrom'), fromInp), field(t('schTo'), toInp), brSel ? field(t('cBranch'), brSel) : null, field(t('schDept'), deptSel), field(t('schEmp'), empSel)),
-      h('div', null, h('span', { class: 'lbl' }, t('schWeeks')), weeksBox),
+      h('div', { class: 'grid' }, plan.department_id ? null : field(t('schDept'), deptSel), field(t('schEmp'), empSel)),
       editable ? h('div', { class: 'row' }, h('span', { class: 'muted' }, t('schFill')), h('div', { style: 'min-width:200px' }, fillSel), h('button', { class: 'btn2 sm', type: 'button', onClick: fillEmpty }, t('schFillBtn') + ' (' + t('schRestOff') + ')'), h('button', { class: 'btn2 sm', type: 'button', onClick: copyPrev }, t('schCopy'))) : null),
-    h('div', { class: 'print-only' }, h('h2', null, t('schTitle') + ' — ' + bName(S.branches.find((b) => String(b.id) === f.branch))), h('div', null, fmtDate(f.from) + ' - ' + fmtDate(f.to))),
+    h('div', { class: 'print-only' }, h('h2', null, planTitle(plan, depts)), h('div', null, monthLabel(planMonth(plan)) + ' · ' + fmtDate(f.from) + ' - ' + fmtDate(f.to))),
     dirtyNote, gridBox].filter(Boolean));
   return wrap;
 }
@@ -1427,12 +1419,11 @@ function repTabs() {
   return h('div', { class: 'pills no-print', role: 'tablist' }, [['month', t('repTabMonth')], ['daily', t('repTabDaily')]].map(([v, l]) =>
     h('button', { type: 'button', role: 'tab', class: 'pill' + (tab === v ? ' on' : ''), 'aria-selected': tab === v ? 'true' : 'false', onClick: () => { S.cache.repTab = v; render(); } }, l)));
 }
-async function viewReports() {
-  if (!can('view_reports')) return viewHome();
-  if ((S.cache.repTab || 'month') === 'daily') return h('div', { style: 'display:flex;flex-direction:column;gap:14px' }, h('h1', null, t('nReports')), repTabs(), dailyReport());
-  const f = S.cache.rep || (S.cache.rep = { month: today().slice(0, 7), branch: isAdmin() ? '' : String(S.profile.branch_id) });
+async function reportSummary(mKey) {
+  const f = S.cache.rep || (S.cache.rep = { branch: isAdmin() ? '' : String(S.profile.branch_id) });
+  f.month = mKey;
   if (!isAdmin()) f.branch = String(S.profile.branch_id);
-  const monthInp = inp({ type: 'month', value: f.month, 'aria-label': t('repMonth') });
+  const monthInp = { value: mKey, addEventListener() {} };
   const brSel = isAdmin() ? sel([['', t('allBranches')], ...S.branches.map((b) => [b.id, bName(b)])], f.branch, { 'aria-label': t('repBranch') }) : null;
   const box = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
   let data = { rows: [], details: [], snap: null };
@@ -1445,7 +1436,7 @@ async function viewReports() {
       const m = monthStart(f.month);
       const [live, det, period, snaps] = await Promise.all([
         q(sb.rpc('report_month', { p_month: m, p_branch: f.branch ? Number(f.branch) : null })),
-        (() => { let qq = sb.from('v_events').select('*').gte('date_from', m).lt('date_from', monthNext(f.month)).order('date_from'); if (f.branch) qq = qq.eq('branch_id', Number(f.branch)); return q(qq); })(),
+        (() => { let qq = sb.from('v_events').select('*').gte('date_from', bounds(f.month).s).lte('date_from', bounds(f.month).e).order('date_from'); if (f.branch) qq = qq.eq('branch_id', Number(f.branch)); return q(qq); })(),
         q(sb.from('periods').select('*').eq('month', m).maybeSingle()), q(sb.from('month_snapshots').select('*').eq('month', m))]);
       const closed = period && !period.is_open && period.closed_at && snaps.length;
       const snapBy = new Map(snaps.map((s) => [s.employee_id, s]));
@@ -1473,7 +1464,7 @@ async function viewReports() {
   };
   const exportX = () => {
     const brName = f.branch ? bName(S.branches.find((b) => String(b.id) === f.branch)) : t('allBranches');
-    const head = [[t('repTitle') + ' — ' + f.month], [t('repBranch') + ': ' + brName], [t('repGen') + ': ' + nowStamp()], data.snap ? [t('repSnap', { d: fmtDate(data.snap.closed_at) })] : [t('repLive')], []];
+    const head = [[t('repTitle') + ' — ' + monthLabel(f.month) + ' (' + rangeLabel(f.month) + ')'], [t('repBranch') + ': ' + brName], [t('repGen') + ': ' + nowStamp()], data.snap ? [t('repSnap', { d: fmtDate(data.snap.closed_at) })] : [t('repLive')], []];
     const sumRows = [[t('cCode'), t('cName'), t('cBranch'), ...cols.map((c) => t('b' + c))], ...data.rows.map((r) => [r.code, r.name, r.branch, ...cols.map((c) => r.v[c] || 0)]),
       [t('total'), '', '', ...cols.map((c) => r2(data.rows.reduce((s, r) => s + Number(r.v[c] || 0), 0)))]];
     const st = { pending: t('fsPending'), clarify: t('fsClarify'), approved: t('fsApproved'), rejected: t('fsRejected') };
@@ -1484,42 +1475,20 @@ async function viewReports() {
   };
   monthInp.addEventListener('change', load); if (brSel) brSel.addEventListener('change', load);
   load();
-  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' }, repTabs(),
-    h('div', { class: 'between' }, h('div', null, h('h1', null, t('repTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, t('repSub'))),
+  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+    h('div', { class: 'between' }, h('div', { class: 'muted' }, t('repSub')),
       h('div', { class: 'row no-print' }, h('button', { class: 'btn2', type: 'button', onClick: exportX }, t('repExcel')), h('button', { class: 'btn2', type: 'button', onClick: () => window.print() }, t('repPrint')),
         isAdmin() ? h('button', { class: 'btn', type: 'button', onClick: async (ev) => { if (!confirm(t('repCloseAsk'))) return; ev.target.disabled = true; try { await q(sb.rpc('close_month', { p_month: monthStart(monthInp.value) })); toast(t('repClosed')); await load(); } catch (ex) { fail(ex); } ev.target.disabled = false; } }, t('repClose')) : null)),
-    h('div', { class: 'card row no-print' }, h('div', { style: 'min-width:200px' }, field(t('repMonth'), monthInp)), brSel ? h('div', { style: 'min-width:220px' }, field(t('repBranch'), brSel)) : null),
-    h('div', { class: 'print-only' }, h('div', { class: 'row' }, h('img', { src: LOGO, alt: '', style: 'width:40px;height:40px' }), h('h2', { style: 'margin:0' }, 'NoVoDux Academy — ' + t('repTitle') + ' ' + monthInp.value))),
+    brSel ? h('div', { class: 'card row no-print' }, h('div', { style: 'min-width:220px' }, field(t('repBranch'), brSel))) : null,
+    h('div', { class: 'print-only' }, h('div', { class: 'row' }, h('img', { src: LOGO, alt: '', style: 'width:40px;height:40px' }), h('h2', { style: 'margin:0' }, 'NoVoDux Academy — ' + t('repTitle') + ' ' + monthLabel(mKey) + ' (' + rangeLabel(mKey) + ')'))),
     box);
 }
 
 /* ---------- سجل التعديلات ---------- */
 const TBL = { ar: { events: 'الأحداث', employees: 'الموظفون', employee_salary: 'الرواتب', profiles: 'المستخدمون', branches: 'الفروع', departments: 'الأقسام', event_types: 'أنواع الأحداث', event_details: 'التفاصيل', periods: 'فترات التسجيل', settings: 'الإعدادات', schedules: 'خطة الأسبوع', shift_templates: 'الورديات', holidays: 'العطلات', employment_periods: 'فترات العمل', employee_transfers: 'التنقلات', employee_branches: 'الفروع الإضافية', leave_entitlements: 'أرصدة الإجازات' } };
-async function viewAudit() {
-  const users = await q(sb.rpc('admin_users'));
-  const uname = (id) => { const u = users.find((x) => x.id === id); return u ? u.full_name : (id ? id.slice(0, 8) : t('auSystem')); };
-  const tblName = (x) => (L() ? x : (TBL.ar[x] || x));
-  const tSel = sel([['', t('auAll')], ...Object.keys(TBL.ar).map((k) => [k, tblName(k)])], S.cache.auT || '', { 'aria-label': t('auTable') });
-  const box = h('div');
-  const fmtV = (v) => (v === null || v === undefined ? '∅' : typeof v === 'object' ? JSON.stringify(v) : String(v));
-  const load = async () => {
-    S.cache.auT = tSel.value; box.replaceChildren(h('div', { class: 'muted' }, t('loading')));
-    try {
-      let qq = sb.from('audit_log').select('*').order('at', { ascending: false }).limit(300); if (tSel.value) qq = qq.eq('tbl', tSel.value);
-      const rows = await q(qq);
-      box.replaceChildren(h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:900px' },
-        h('thead', null, h('tr', null, h('th', null, t('auWhen')), h('th', null, t('auWho')), h('th', null, t('auTable')), h('th', null, t('auAction')), h('th', null, t('auRow')), h('th', null, t('auChanges')))),
-        h('tbody', null, rows.map((r) => h('tr', null, h('td', { style: 'white-space:nowrap', dir: 'ltr' }, new Date(r.at).toLocaleString('en-GB')), h('td', null, uname(r.user_id)), h('td', null, tblName(r.tbl)),
-          h('td', null, chip(t('au' + r.action), r.action === 'D' ? 'err' : r.action === 'U' ? 'warn' : 'on')), h('td', null, r.row_id || '—'),
-          h('td', { style: 'font-size:12.5px', dir: 'ltr' }, r.action === 'U' && r.changes ? Object.entries(r.changes).map(([k, v]) => h('div', null, h('b', null, k + ': '), fmtV(v[0]) + ' → ' + fmtV(v[1]))) : r.action === 'D' && r.changes ? h('div', { class: 'muted' }, fmtV(r.changes).slice(0, 160)) : '—')))))));
-    } catch (ex) { box.replaceChildren(h('div', { class: 'box err' }, t('errGeneric') + ex.message)); }
-  };
-  tSel.addEventListener('change', load); load();
-  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' }, h('div', null, h('h1', null, t('auTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, t('auSub'))), h('div', { class: 'card', style: 'max-width:340px' }, field(t('auTable'), tSel)), box);
-}
-
 /* ---------- إضافات الإعدادات ---------- */
 async function settingsExtras(wrap) {
+  wrap.append(cycleSettingsCard());
   const [shifts, holidays] = await Promise.all([q(sb.from('shift_templates').select('*').order('sort')), q(sb.from('holidays').select('*').order('day'))]);
   const run = async (p) => { try { await q(p); toast(t('saved')); render(); } catch (ex) { fail(ex); } };
   const sAr = inp({ type: 'text' }), sEn = inp({ type: 'text', dir: 'ltr' }), sA = inp({ type: 'time', value: '09:00' }), sB = inp({ type: 'time', value: '17:00' });
@@ -1542,7 +1511,7 @@ async function settingsExtras(wrap) {
     h('button', { class: 'btn', type: 'button', onClick: async (ev) => { ev.target.disabled = true; try { await fullBackup(); toast(t('sBackupDone')); } catch (ex) { fail(ex); } ev.target.disabled = false; } }, t('sBackupBtn'))));
 }
 async function fullBackup() {
-  const tables = ['branches', 'departments', 'employees', 'employee_salary', 'employee_branches', 'employee_transfers', 'employment_periods', 'profiles', 'event_types', 'event_details', 'events', 'periods', 'month_snapshots', 'settings', 'leave_entitlements', 'shift_templates', 'schedules', 'holidays', 'audit_log'];
+  const tables = ['branches', 'departments', 'employees', 'employee_salary', 'employee_branches', 'employee_transfers', 'employment_periods', 'profiles', 'event_types', 'event_details', 'events', 'periods', 'month_snapshots', 'settings', 'leave_entitlements', 'shift_templates', 'schedule_plans', 'schedules', 'holidays', 'audit_log'];
   const sheets = [];
   for (const tb of tables) {
     let all = [], from = 0;
@@ -1595,7 +1564,7 @@ const canEvents = () => isAdmin() || can('register_events') || can('edit_events'
 const canSched = () => can('view_schedule') || can('manage_schedules');
 const ROUTE_OK = {
   register: () => can('register_events') || (S.param && S.param !== 'new' && (can('edit_events'))),
-  events: canEvents, schedule: canSched, employees: () => can('view_employees'), employee: () => can('view_employees'), reports: () => can('view_reports')
+  events: canEvents, event: canEvents, schedule: canSched, plan: canSched, report: () => can('view_reports'), employees: () => can('view_employees'), employee: () => can('view_employees'), reports: () => can('view_reports')
 };
 async function refreshProfile() {
   try {
@@ -1662,10 +1631,10 @@ function balanceCard(empId) {
 }
 
 /* ---------- التقرير اليومي ---------- */
-function dailyReport() {
-  const f = S.cache.daily || (S.cache.daily = { month: today().slice(0, 7), branch: isAdmin() ? '' : String(S.profile.branch_id), status: '', type: '', emp: '' });
-  if (!isAdmin()) f.branch = String(S.profile.branch_id);
-  const monthInp = inp({ type: 'month', value: f.month, 'aria-label': t('repMonth') });
+function dailyReport(mKey) {
+  const f = S.cache.daily || (S.cache.daily = { month: mKey, branch: isAdmin() ? '' : String(S.profile.branch_id), status: '', type: '', emp: '' });
+  f.month = mKey; if (!isAdmin()) f.branch = String(S.profile.branch_id);
+  const monthInp = { value: mKey, addEventListener() {} };
   const brSel = isAdmin() ? sel([['', t('allBranches')], ...S.branches.map((b) => [b.id, bName(b)])], f.branch, { 'aria-label': t('repBranch') }) : null;
   const stSel = sel([['', t('allStatuses')], ['approved', t('fsApproved')], ['pending', t('fsPending')], ['clarify', t('fsClarify')], ['rejected', t('fsRejected')]], f.status, { 'aria-label': t('cStatus') });
   const tySel = h('select', { class: 'inp', 'aria-label': t('cEvent') });
@@ -1710,7 +1679,7 @@ function dailyReport() {
     try {
       if (!types.length) [types, emps] = await Promise.all([q(sb.from('event_types').select('id,name,name_en').order('sort')), q(sb.from('employees').select('id,code,full_name,primary_branch_id'))]);
       fillSelects();
-      let qq = sb.from('v_events').select('*').gte('date_from', monthStart(f.month)).lt('date_from', monthNext(f.month)).order('date_from').order('employee_code').order('id');
+      let qq = sb.from('v_events').select('*').gte('date_from', bounds(f.month).s).lte('date_from', bounds(f.month).e).order('date_from').order('employee_code').order('id');
       if (f.branch) qq = qq.eq('branch_id', Number(f.branch));
       if (f.status) qq = qq.eq('status', f.status);
       if (f.type) qq = qq.eq('event_type_id', Number(f.type));
@@ -1722,7 +1691,7 @@ function dailyReport() {
   };
   const exportX = () => {
     const brName = f.branch ? bName(S.branches.find((b) => String(b.id) === f.branch)) : t('allBranches');
-    const head = [[t('repTabDaily') + ' — ' + f.month], [t('repBranch') + ': ' + brName + (f.status ? ' · ' + stName(f.status) : '')], [t('repGen') + ': ' + nowStamp()], []];
+    const head = [[t('repTabDaily') + ' — ' + monthLabel(f.month) + ' (' + rangeLabel(f.month) + ')'], [t('repBranch') + ': ' + brName + (f.status ? ' · ' + stName(f.status) : '')], [t('repGen') + ': ' + nowStamp()], []];
     const hdr = [t('cDate'), t('cDay'), t('cCode'), t('cName'), t('cBranch'), t('cEvent'), t('fDetail'), t('cTime'), t('cSug'), t('cFinal'), t('unit'), t('cStatus'), t('cNotes')];
     const out = [];
     days().forEach(([d, list]) => {
@@ -1738,9 +1707,546 @@ function dailyReport() {
   return h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
     h('div', { class: 'between' }, h('div', { class: 'muted' }, t('dailySub')),
       h('div', { class: 'row no-print' }, h('button', { class: 'btn2', type: 'button', onClick: exportX }, t('repExcel')), h('button', { class: 'btn2', type: 'button', onClick: () => window.print() }, t('repPrint')))),
-    h('div', { class: 'card no-print' }, h('div', { class: 'grid' }, field(t('repMonth'), monthInp), brSel ? field(t('repBranch'), brSel) : null, field(t('cStatus'), stSel), field(t('cEvent'), tySel), field(t('fEmployee'), empSel))),
-    h('div', { class: 'print-only' }, h('h2', { style: 'margin:0' }, 'NoVoDux Academy — ' + t('repTabDaily') + ' ' + monthInp.value)),
+    h('div', { class: 'card no-print' }, h('div', { class: 'grid' }, brSel ? field(t('repBranch'), brSel) : null, field(t('cStatus'), stSel), field(t('cEvent'), tySel), field(t('fEmployee'), empSel))),
+    h('div', { class: 'print-only' }, h('h2', { style: 'margin:0' }, 'NoVoDux Academy — ' + t('repTabDaily') + ' ' + monthLabel(mKey) + ' (' + rangeLabel(mKey) + ')')),
     box);
+}
+
+/* ====================== المرحلة 6: الشهر الإداري، خطط الأسبوع، تفاصيل الحدث، السجل المقروء ====================== */
+Object.assign(TX.ar, {
+  nSchedule: 'خطط الأسبوع', plNew: '+ إنشاء خطة', plCreate: 'إنشاء الخطة', plTitle: 'خطط الأسبوع', plSub: 'كل خطة لفرع (أو قسم) لفترة محددة. افتح الخطة لتعديل الورديات أو تصديرها.',
+  plMonth: 'الشهر', plFrom: 'من يوم', plTo: 'إلى يوم', plDept: 'القسم', plAllDepts: 'كل الأقسام', plDays: '{n} يوم', plDraft: 'مسودة', plApproved: 'معتمدة', plEmpty: 'لا توجد خطط بهذه الاختيارات.',
+  plApprove: 'اعتماد الخطة', plUnapprove: 'إرجاعها مسودة', plDelete: 'حذف الخطة', plDelAsk: 'ستُحذف الخطة وكل وردياتها. هل أنت متأكد؟', plCopy: 'نسخ كخطة جديدة', plCopyFrom: 'تبدأ الخطة الجديدة من', plCopyGo: 'نسخ',
+  plCopied: 'تم إنشاء الخطة الجديدة ونسخ الورديات إليها.', plLocked: 'هذه الخطة معتمدة، ولا يعدّلها إلا مدير النظام.', plBack: 'كل الخطط', plWeeks: 'أسابيع الشهر', plCreated: 'تم إنشاء الخطة.', plAllMonths: 'كل الشهور',
+  plCreatedBy: 'أنشأها', plRange: 'الفترة', plOverlap: 'توجد خطة أخرى تتداخل مع هذه الفترة.',
+  repCards: 'التقارير الشهرية', repCardsSub: 'كل شهر يبدأ من يوم {d} في الشهر السابق وينتهي يوم {e} من الشهر نفسه. افتح الشهر لعرض تقريره.', repOpen: 'مفتوح للتسجيل', repClosedL: 'مغلق', repSnapL: 'مغلق بلقطة',
+  repCurrent: 'الشهر الحالي', repOf: 'تقرير شهر {m}', repAll: 'كل التقارير', repNoMonths: 'لا توجد شهور بعد.',
+  sCycle: 'الشهر الإداري', sCycleNote: 'يحدّد بداية الشهر ونهايته لكل الحسابات: التسجيل، والتقارير، وإغلاق الشهر، وعدّ التكرار. سنة رصيد الإجازات تبقى من يناير إلى ديسمبر.', sStartDay: 'يبدأ الشهر من يوم (1 – 28)',
+  sCycleEx: 'مثال: شهر {m} = من {s} إلى {e}', sCycleMonths: 'تعديل بداية ونهاية شهر بعينه', sCycleMonthsNote: 'اتركها فارغة لتتبع القاعدة العامة. التعديل يخص الشهر المختار فقط.', sCycleMonth: 'الشهر', sCycleStart: 'البداية', sCycleEnd: 'النهاية',
+  sCycleDefault: 'افتراضي', sCycleGap: 'تنبيه: يوجد فراغ أو تداخل بين هذا الشهر والشهر المجاور.', sCycleReset: 'رجوع للقاعدة',
+  instrAr: 'تعليمات للمدير (عربي)', instrEn: 'تعليمات للمدير (إنجليزي)', instrNote: 'تظهر لمدير الفرع عند اختيار هذا النوع في شاشة تسجيل الحدث.', instrPh: 'مثال: أرفق صورة الشهادة الطبية، وسجّل اليوم الأول فقط.', instrTitle: 'تعليمات هذا الحدث',
+  evDetail: 'تفاصيل الحدث', evOpen: 'فتح', evCreated: 'سجّله', evReviewed: 'راجعه', evHistory: 'سجل التعديلات على الحدث', evNoHistory: 'لا توجد تعديلات.', evPrint: 'طباعة الحدث', evAttach: 'المرفق', evNoAttach: 'لا يوجد مرفق.',
+  evDecision: 'القرار', evSigned: 'الأثر', sgPlus: 'إضافة', sgMinus: 'خصم', sgLeave: 'إجازة', sgPerm: 'إذن', evBack: 'رجوع', evRepeat: 'رقم التكرار', evDuration: 'المدة', evWho: 'المسجِّل',
+  empSearch: 'ابحث بالاسم أو الكود أو المسمى الوظيفي أو القسم', cDept: 'القسم', empExcel: 'تصدير Excel', sortHint: 'اضغط عنوان العمود للترتيب',
+  auUser: 'المستخدم', auAllUsers: 'كل المستخدمين', auFrom: 'من تاريخ', auTo: 'إلى تاريخ', auSentence: 'التفاصيل', auAdded: 'أضاف', auEdited: 'عدّل', auDeleted: 'حذف', auNoRows: 'لا توجد تعديلات بهذه الاختيارات.',
+  auSubNew: 'آخر 500 تغيير: من فعل ماذا ومتى. اختر مستخدمًا أو جدولًا أو فترة، واضغط عنوان أي عمود للترتيب.',
+  qsPh: 'ابحث عن موظف بالاسم أو الكود...', qsGo: 'فتح ملف الموظف', newBadge: 'جديد',
+  hCardHint: 'اضغط للفتح'
+});
+Object.assign(TX.en, {
+  nSchedule: 'Weekly plans', plNew: '+ Create plan', plCreate: 'Create plan', plTitle: 'Weekly plans', plSub: 'Each plan is for a branch (or department) over a set period. Open a plan to edit shifts or export it.',
+  plMonth: 'Month', plFrom: 'From', plTo: 'To', plDept: 'Department', plAllDepts: 'All departments', plDays: '{n} days', plDraft: 'Draft', plApproved: 'Approved', plEmpty: 'No plans for this selection.',
+  plApprove: 'Approve plan', plUnapprove: 'Back to draft', plDelete: 'Delete plan', plDelAsk: 'The plan and all its shifts will be deleted. Are you sure?', plCopy: 'Copy as new plan', plCopyFrom: 'New plan starts on', plCopyGo: 'Copy',
+  plCopied: 'New plan created and shifts copied.', plLocked: 'This plan is approved; only the admin can edit it.', plBack: 'All plans', plWeeks: 'Weeks of the month', plCreated: 'Plan created.', plAllMonths: 'All months',
+  plCreatedBy: 'Created by', plRange: 'Period', plOverlap: 'Another plan overlaps this period.',
+  repCards: 'Monthly reports', repCardsSub: 'Each month starts on day {d} of the previous month and ends on day {e} of the month. Open a month to see its report.', repOpen: 'Open for entry', repClosedL: 'Closed', repSnapL: 'Closed with snapshot',
+  repCurrent: 'Current month', repOf: '{m} report', repAll: 'All reports', repNoMonths: 'No months yet.',
+  sCycle: 'Payroll month', sCycleNote: 'Sets the start and end of the month for everything: entry, reports, closing and repeat counting. The leave-balance year stays January to December.', sStartDay: 'Month starts on day (1 – 28)',
+  sCycleEx: 'Example: {m} = {s} to {e}', sCycleMonths: 'Change the start and end of a specific month', sCycleMonthsNote: 'Leave empty to follow the general rule. The change affects only that month.', sCycleMonth: 'Month', sCycleStart: 'Start', sCycleEnd: 'End',
+  sCycleDefault: 'Default', sCycleGap: 'Warning: there is a gap or overlap with the neighbouring month.', sCycleReset: 'Back to rule',
+  instrAr: 'Instructions for the manager (Arabic)', instrEn: 'Instructions for the manager (English)', instrNote: 'Shown to the branch manager when choosing this type on the record screen.', instrPh: 'e.g. Attach the medical certificate and record the first day only.', instrTitle: 'Instructions for this event',
+  evDetail: 'Event details', evOpen: 'Open', evCreated: 'Recorded by', evReviewed: 'Reviewed by', evHistory: 'Change history', evNoHistory: 'No changes.', evPrint: 'Print event', evAttach: 'Attachment', evNoAttach: 'No attachment.',
+  evDecision: 'Decision', evSigned: 'Effect', sgPlus: 'addition', sgMinus: 'deduction', sgLeave: 'leave', sgPerm: 'permission', evBack: 'Back', evRepeat: 'Repeat no.', evDuration: 'Duration', evWho: 'Recorded by',
+  empSearch: 'Search by name, code, job title or department', cDept: 'Department', empExcel: 'Export Excel', sortHint: 'Click a column title to sort',
+  auUser: 'User', auAllUsers: 'All users', auFrom: 'From', auTo: 'To', auSentence: 'Details', auAdded: 'added', auEdited: 'edited', auDeleted: 'deleted', auNoRows: 'No changes for this selection.',
+  auSubNew: 'Last 500 changes: who did what and when. Pick a user, table or period, and click any column title to sort.',
+  qsPh: 'Find an employee by name or code...', qsGo: 'Open employee file', newBadge: 'new',
+  hCardHint: 'Click to open'
+});
+
+/* ---------- الشهر الإداري ---------- */
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const pad2 = (n) => String(n).padStart(2, '0');
+const addMonths = (key, n) => { let [y, m] = key.slice(0, 7).split('-').map(Number); m += n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return y + '-' + pad2(m); };
+async function loadCal() {
+  try {
+    const [st, ps] = await Promise.all([q(sb.from('settings').select('value').eq('key', 'month_start_day').maybeSingle()), q(sb.from('periods').select('*').order('month'))]);
+    S.cal = { sd: Math.min(28, Math.max(1, Number(st && st.value) || 1)), periods: ps || [] };
+  } catch (e) { S.cal = S.cal || { sd: 1, periods: [] }; }
+}
+function bounds(key) {
+  key = String(key).slice(0, 7); const sd = (S.cal && S.cal.sd) || 1;
+  let s, e;
+  if (sd === 1) { s = key + '-01'; e = addDays(addMonths(key, 1) + '-01', -1); } else { s = addMonths(key, -1) + '-' + pad2(sd); e = key + '-' + pad2(sd - 1); }
+  const p = ((S.cal && S.cal.periods) || []).find((x) => String(x.month).slice(0, 7) === key);
+  if (p) { if (p.start_date) s = p.start_date; if (p.end_date) e = p.end_date; }
+  return { s, e };
+}
+const cycleKey = (d) => { if (!d) return ''; const k = String(d).slice(0, 7); for (const c of [k, addMonths(k, 1), addMonths(k, -1)]) { const b = bounds(c); if (d >= b.s && d <= b.e) return c; } return k; };
+const monthLabel = (key) => { if (!key) return '—'; const [y, m] = String(key).slice(0, 7).split('-').map(Number); return (L() ? MONTHS_EN : MONTHS_AR)[m - 1] + ' ' + y; };
+const rangeLabel = (key) => { const b = bounds(key); return fmtDate(b.s) + ' – ' + fmtDate(b.e); };
+
+/* ---------- روابط تُفتح في تبويب جديد ---------- */
+const link = (href, attrs, ...kids) => h('a', Object.assign({ href, class: 'lnk' }, attrs || {}), ...kids);
+function rowLink(tr, href) {
+  tr.classList.add('click'); tr.tabIndex = 0;
+  const isCtl = (el) => el.closest('a,button,input,select,textarea,label');
+  tr.addEventListener('click', (e) => { if (isCtl(e.target)) return; if (e.ctrlKey || e.metaKey) { window.open(href, '_blank'); return; } location.hash = href; });
+  tr.addEventListener('auxclick', (e) => { if (e.button === 1 && !isCtl(e.target)) { e.preventDefault(); window.open(href, '_blank'); } });
+  tr.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+  tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !isCtl(e.target)) location.hash = href; });
+  return tr;
+}
+/* ترتيب الجداول: عنوان قابل للضغط */
+function sortHead(label, key, st, redraw) {
+  const on = st.key === key;
+  return h('th', { class: 'sortable', 'aria-sort': on ? (st.dir > 0 ? 'ascending' : 'descending') : 'none' },
+    h('button', { type: 'button', class: 'thbtn', onClick: () => { if (st.key === key) st.dir = -st.dir; else { st.key = key; st.dir = 1; } redraw(); } }, label, h('span', { class: 'arr' }, on ? (st.dir > 0 ? ' ▲' : ' ▼') : ' ↕')));
+}
+const cmpAny = (a, b) => { if (a == null || a === '') return 1; if (b == null || b === '') return -1; if (typeof a === 'number' && typeof b === 'number') return a - b; return String(a).localeCompare(String(b), L() ? 'en' : 'ar', { numeric: true }); };
+
+/* ---------- القيمة بعلامة: إضافة / خصم ---------- */
+function signed(cat, val, unit) {
+  if (val == null || val === '') return h('span', { class: 'muted' }, '—');
+  const v = Number(val), u = unitName(unit);
+  if (cat === 'deduction') return h('span', { class: 'sg minus', title: t('sgMinus') }, '− ' + v + ' ' + u + ' ' + t('sgMinus'));
+  if (cat === 'entitlement') return h('span', { class: 'sg plus', title: t('sgPlus') }, '+ ' + v + ' ' + u + ' ' + t('sgPlus'));
+  if (cat === 'leave') return h('span', { class: 'sg leave' }, v + ' ' + u + ' ' + t('sgLeave'));
+  if (cat === 'permission') return h('span', { class: 'sg leave' }, v + ' ' + u + ' ' + t('sgPerm'));
+  return h('span', null, v + ' ' + u);
+}
+
+/* ---------- الإطار: روابط + بحث سريع + تنبيهات ---------- */
+function shell(content) {
+  const items = [['home', t('nHome')]];
+  if (can('approve_events')) items.push(['events', t('nReview'), S.pendingCount]);
+  if (can('register_events')) items.push(['register', t('nReg')]);
+  if (!can('approve_events') && canEvents()) items.push(['events', t('nEvents'), S.pendingCount]);
+  if (canSched()) items.push(['schedule', t('nSchedule')]);
+  if (can('view_employees')) items.push(['employees', t('nEmployees')]);
+  if (can('view_reports')) items.push(['reports', t('nReports')]);
+  if (isAdmin()) items.push(['import', t('nImport')], ['users', t('nUsers')], ['audit', t('nAudit')], ['settings', t('nSettings')]);
+  items.push(['account', t('nAccount')]);
+  const sect = { plan: 'schedule', report: 'reports', event: 'events', employee: 'employees' }[S.route] || S.route;
+  const myBranch = S.branches.find((b) => b.id === S.profile.branch_id);
+  return h('div', null,
+    h('header', { class: 'top' },
+      h('div', { class: 'row', style: 'gap:12px;flex-wrap:nowrap;min-width:0' }, h('a', { href: '#home', style: 'display:flex' }, h('img', { src: LOGO, alt: 'NoVoDux Academy', class: 'brand-logo' })),
+        h('div', { style: 'min-width:0' }, h('div', { class: 'brand-name' }, 'NoVoDux Academy'), h('div', { class: 'brand-sub' }, t('app') + ' · ' + S.profile.full_name + ' · ' + (isAdmin() ? t('admin') : t('manager') + ' ' + bName(myBranch))))),
+      can('view_employees') ? quickSearch() : null,
+      h('div', { class: 'row' }, chromeButtons(), h('button', { class: 'btn2 sm', type: 'button', onClick: async () => { await sb.auth.signOut(); S.session = null; S.profile = null; S.cache = {}; location.hash = ''; render(); } }, t('logout')))),
+    h('div', { class: 'layout' },
+      h('nav', { class: 'side', 'aria-label': 'menu' },
+        items.map(([r, label, badge]) => h('a', { class: 'nav-btn' + (sect === r ? ' active' : ''), href: '#' + r, 'aria-current': sect === r ? 'page' : null }, h('span', null, label), badge ? h('span', { class: 'badge' }, badge) : null))),
+      h('main', null, content)));
+}
+function quickSearch() {
+  const list = h('datalist', { id: 'qs-list' });
+  const box = inp({ type: 'search', list: 'qs-list', placeholder: t('qsPh'), 'aria-label': t('qsPh'), class: 'inp qs' });
+  let loaded = false;
+  box.addEventListener('focus', async () => {
+    if (loaded) return; loaded = true;
+    try { const em = await q(sb.from('employees').select('id,code,full_name').order('code')); S.qsEmps = em; list.replaceChildren(...em.map((e) => h('option', { value: e.code + ' - ' + e.full_name }))); } catch (e) { loaded = false; }
+  });
+  const goTo = () => { const v = box.value.trim(); const e = (S.qsEmps || []).find((x) => x.code + ' - ' + x.full_name === v) || (S.qsEmps || []).find((x) => String(x.code) === v); if (e) { box.value = ''; go('employee', e.id); } };
+  box.addEventListener('change', goTo); box.addEventListener('keydown', (e) => { if (e.key === 'Enter') goTo(); });
+  return h('div', { class: 'qs-wrap no-print' }, box, list);
+}
+
+/* ---------- الرئيسية: كروت قابلة للضغط ---------- */
+async function viewHome() {
+  const [emps, types, periods] = await Promise.all([
+    q(sb.from('employees').select('id,primary_branch_id,status')), q(sb.from('event_types').select('id,is_active')), q(sb.from('periods').select('month,is_open'))]);
+  const active = emps.filter((e) => e.status === 'active');
+  const openM = periods.filter((p) => p.is_open).map((p) => p.month.slice(0, 7)).sort();
+  const visibleBranches = S.branches.filter((b) => isAdmin() || b.id === S.profile.branch_id);
+  const evc = canEvents() ? await q(sb.from('events').select('status').in('status', ['pending', 'clarify'])) : [];
+  const evLink = (status) => { S.cache.evf = Object.assign(S.cache.evf || {}, { status, month: '', branch: '', type: '', text: '' }); };
+  const kpi = (label, value, sub, href, before) => {
+    const body = [h('div', { class: 'muted' }, label), h('div', { style: 'font-size:30px;font-weight:800;margin-top:6px' }, value), sub ? h('div', { class: 'muted' }, sub) : null];
+    return href ? h('a', { class: 'card kpi', href, title: t('hCardHint'), onClick: before || null }, body) : h('div', { class: 'card kpi' }, body);
+  };
+  const cur = cycleKey(today());
+  return h('div', { style: 'display:flex;flex-direction:column;gap:18px' },
+    h('div', { class: 'between' }, h('div', null, h('h1', null, t('nHome')), h('div', { class: 'muted', style: 'margin-top:4px' }, t('repCurrent') + ': ' + monthLabel(cur) + ' (' + rangeLabel(cur) + ')')), h('div', { class: 'row' },
+      can('register_events') ? link('#register', { class: 'btn' }, t('hRecord')) : null,
+      canSched() ? link('#schedule', { class: 'btn2' }, t('nSchedule')) : null,
+      canEvents() ? link('#events', { class: 'btn2', onClick: () => evLink(can('approve_events') ? 'pending' : 'clarify') }, can('approve_events') ? t('hOpenReview') : t('hMyEvents')) : null)),
+    h('div', { class: 'grid' },
+      canEvents() ? kpi(t('hPending'), evc.filter((x) => x.status === 'pending').length, null, '#events', () => evLink('pending')) : null,
+      canEvents() ? kpi(t('hClarify'), evc.filter((x) => x.status === 'clarify').length, null, '#events', () => evLink('clarify')) : null,
+      kpi(t('hActive'), active.length, null, can('view_employees') ? '#employees' : null, () => { S.cache.empFilter = Object.assign(S.cache.empFilter || {}, { branch: '', status: 'active', text: '' }); }),
+      isAdmin() ? kpi(t('hBranches'), S.branches.filter((b) => b.is_active).length, null, '#settings') : null,
+      kpi(t('hTypes'), types.filter((x) => x.is_active).length, null, isAdmin() ? '#settings' : null),
+      kpi(t('hOpen'), openM.length, openM.map(monthLabel).join(' · '), can('view_reports') ? '#reports' : (isAdmin() ? '#settings' : null))),
+    h('div', { class: 'card' }, h('h2', null, t('hByBranch')),
+      h('div', { class: 'grid' }, visibleBranches.map((b) => {
+        const body = [h('div', { style: 'font-weight:700' }, bName(b), ' ', b.is_active ? null : chip(t('sClosedTxt'), 'off')), h('div', { class: 'muted' }, active.filter((e) => e.primary_branch_id === b.id).length + ' ' + t('stActive'))];
+        return can('view_employees') ? h('a', { class: 'brcard', href: '#employees', onClick: () => { S.cache.empFilter = Object.assign(S.cache.empFilter || {}, { branch: String(b.id), status: 'active', text: '' }); } }, body) : h('div', { class: 'brcard' }, body);
+      }))),
+    isAdmin() ? h('div', { class: 'card' }, h('h2', null, t('hNext')), h('ol', { style: 'margin:0;padding-inline-start:20px;line-height:2' }, h('li', null, t('hStep1')), h('li', null, t('hStep2')), h('li', null, t('hStep3')), h('li', null, t('hStep4')))) : h('div', { class: 'box ok' }, t('mgrNote')));
+}
+
+/* ---------- الموظفون: بحث أوسع + قسم + ترتيب + تصدير ---------- */
+async function viewEmployees() {
+  const [emps, depts] = await Promise.all([q(sb.from('employees').select('id,code,full_name,primary_branch_id,job_title,hire_date,status,department_id')), q(sb.from('departments').select('id,name,name_en'))]);
+  const deptN = (id) => (id ? nm(depts.find((d) => d.id === id)) : '—');
+  const brN = (id) => bName(S.branches.find((b) => b.id === id));
+  const f = S.cache.empFilter || (S.cache.empFilter = { text: '', branch: '', status: 'active' });
+  const st = S.cache.empSort || (S.cache.empSort = { key: 'code', dir: 1 });
+  const val = (e, k) => ({ code: e.code, name: e.full_name, branch: brN(e.primary_branch_id), dept: e.department_id ? deptN(e.department_id) : '', job: e.job_title, hire: e.hire_date, status: e.status })[k];
+  const tableBox = h('div'); const countEl = h('span', { class: 'muted' });
+  let rows = [];
+  const draw = () => {
+    const txt = (f.text || '').trim().toLowerCase();
+    rows = emps.filter((e) => (!txt || [e.full_name, e.code, e.job_title, e.department_id ? deptN(e.department_id) : ''].some((x) => String(x || '').toLowerCase().includes(txt)))
+      && (!f.branch || String(e.primary_branch_id) === f.branch) && (f.status === 'all' || e.status === f.status));
+    rows.sort((a, b) => (st.key === 'code' ? cmpCode(a.code, b.code) : cmpAny(val(a, st.key), val(b, st.key))) * st.dir || cmpCode(a.code, b.code));
+    countEl.textContent = t('count') + ': ' + rows.length;
+    const head = h('tr', null, [['code', t('cCode')], ['name', t('cName')], ['branch', t('cBranch')], ['dept', t('cDept')], ['job', t('cJob')], ['hire', t('cHire')], ['status', t('cStatus')]].map(([k, l]) => sortHead(l, k, st, draw)));
+    tableBox.replaceChildren(h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:860px' }, h('thead', null, head),
+      h('tbody', null, rows.length ? rows.map((e) => rowLink(h('tr', null, h('td', null, e.code), h('td', { style: 'font-weight:600' }, link('#employee/' + e.id, null, e.full_name)), h('td', null, brN(e.primary_branch_id)),
+        h('td', null, deptN(e.department_id)), h('td', null, e.job_title), h('td', null, fmtDate(e.hire_date)), h('td', null, e.status === 'active' ? chip(t('stActive'), 'on') : chip(t('stTerm'), 'off'))), '#employee/' + e.id))
+        : h('tr', null, h('td', { colspan: '7', class: 'muted', style: 'text-align:center;padding:24px' }, t('noRows')))))));
+  };
+  const search = inp({ type: 'search', placeholder: t('empSearch'), value: f.text, 'aria-label': t('empSearch'), onInput: (e) => { f.text = e.target.value; draw(); } });
+  const brSel = sel([['', t('allBranches')], ...S.branches.filter((b) => isAdmin() || b.id === S.profile.branch_id).map((b) => [b.id, bName(b)])], f.branch, { 'aria-label': t('cBranch'), onChange: (e) => { f.branch = e.target.value; draw(); } });
+  const stPills = h('div', { class: 'pills' });
+  const drawPills = () => stPills.replaceChildren(...[['active', t('stActive')], ['terminated', t('stTerm')], ['all', t('stAll')]].map(([v, l]) => h('button', { type: 'button', class: 'pill' + (f.status === v ? ' on' : ''), 'aria-pressed': f.status === v ? 'true' : 'false', onClick: () => { f.status = v; drawPills(); draw(); } }, l)));
+  const exportX = () => xlsxWrite([{ name: t('nEmployees'), rows: [[t('cCode'), t('cName'), t('cBranch'), t('cDept'), t('cJob'), t('cHire'), t('cStatus')],
+    ...rows.map((e) => [e.code, e.full_name, brN(e.primary_branch_id), e.department_id ? deptN(e.department_id) : '', e.job_title, fmtDate(e.hire_date), e.status === 'active' ? t('stActive') : t('stTerm')])], widths: [8, 28, 14, 16, 20, 12, 12] }],
+    (L() ? 'employees_' : 'الموظفون_') + today() + '.xlsx');
+  drawPills(); draw();
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px' },
+    h('div', { class: 'between' }, h('h1', null, t('nEmployees')), h('div', { class: 'row' }, h('button', { class: 'btn2', type: 'button', onClick: exportX }, t('empExcel')), can('add_employees') ? link('#employee/new', { class: 'btn' }, t('newEmp')) : null)),
+    h('div', { class: 'row' }, h('div', { style: 'flex:2 1 280px' }, search), h('div', { style: 'flex:1 1 180px' }, brSel), stPills, countEl),
+    h('div', { class: 'muted' }, t('sortHint')), tableBox);
+}
+
+/* ---------- خطط الأسبوع ---------- */
+const planMonth = (p) => String(p.month).slice(0, 7);
+function planTitle(p, depts) {
+  const d = p.department_id ? (depts || []).find((x) => x.id === p.department_id) : null;
+  return bName(S.branches.find((b) => b.id === p.branch_id)) + (d ? ' — ' + nm(d) : '') + ' — ' + monthLabel(planMonth(p)) + ' — ' + fmtDate(p.date_from) + ' ⟵ ' + fmtDate(p.date_to);
+}
+const planStatusChip = (p) => (p.status === 'approved' ? chip(t('plApproved'), 'on') : chip(t('plDraft'), 'warn'));
+function weekChips(mKey, onPick, cur) {
+  const b = bounds(mKey); let s = addDays(b.s, -((wday(b.s) + 1) % 7)); const out = [];
+  while (s <= b.e) { const e2 = addDays(s, 6); const ss = s < b.s ? b.s : s, ee = e2 > b.e ? b.e : e2; out.push(h('button', { type: 'button', class: 'pill' + (cur && cur.from === ss && cur.to === ee ? ' on' : ''), onClick: () => onPick(ss, ee) }, h('span', { dir: 'ltr' }, fmtDate(ss).slice(0, 5) + ' - ' + fmtDate(ee).slice(0, 5)))); s = addDays(s, 7); }
+  return out;
+}
+async function viewSchedule() {
+  const [plans, depts] = await Promise.all([q(sb.from('schedule_plans').select('*').order('date_from', { ascending: false })), q(sb.from('departments').select('*').order('name'))]);
+  const f = S.cache.plf || (S.cache.plf = { month: '', branch: '' });
+  const months = [...new Set(plans.map(planMonth))].sort().reverse();
+  const listBox = h('div');
+  const draw = () => {
+    const rows = plans.filter((p) => (!f.month || planMonth(p) === f.month) && (!f.branch || String(p.branch_id) === f.branch));
+    listBox.replaceChildren(rows.length ? h('div', { class: 'plan-grid' }, rows.map((p) => {
+      const dn = p.department_id ? nm(depts.find((d) => d.id === p.department_id)) : t('plAllDepts');
+      return h('a', { class: 'card plan-card', href: '#plan/' + p.id },
+        h('div', { class: 'between' }, h('div', { style: 'font-weight:800;font-size:16px' }, bName(S.branches.find((b) => b.id === p.branch_id))), planStatusChip(p)),
+        h('div', { class: 'muted' }, dn),
+        h('div', { style: 'font-weight:700;color:var(--accent);margin-top:6px' }, monthLabel(planMonth(p))),
+        h('div', { dir: 'ltr', style: 'text-align:start' }, fmtDate(p.date_from) + '  →  ' + fmtDate(p.date_to)),
+        h('div', { class: 'muted' }, t('plDays', { n: daysBetween(p.date_from, p.date_to) })));
+    })) : h('div', { class: 'card muted' }, t('plEmpty')));
+  };
+  const mSel = sel([['', t('plAllMonths')], ...months.map((m) => [m, monthLabel(m)])], f.month, { 'aria-label': t('plMonth'), onChange: (e) => { f.month = e.target.value; draw(); } });
+  const bSel = isAdmin() ? sel([['', t('allBranches')], ...S.branches.map((b) => [b.id, bName(b)])], f.branch, { 'aria-label': t('cBranch'), onChange: (e) => { f.branch = e.target.value; draw(); } }) : null;
+  const creator = h('div');
+  const openCreate = () => {
+    const c = S.cache.plNew || (S.cache.plNew = { month: cycleKey(today()), branch: String(isAdmin() ? ((S.branches.find((b) => b.is_active) || {}).id || '') : S.profile.branch_id), dept: '', from: '', to: '' });
+    const brS = isAdmin() ? sel(S.branches.filter((b) => b.is_active).map((b) => [b.id, bName(b)]), c.branch, { 'aria-label': t('cBranch') }) : null;
+    const dS = h('select', { class: 'inp', 'aria-label': t('plDept') });
+    const fillD = () => dS.replaceChildren(h('option', { value: '' }, t('plAllDepts')), ...depts.filter((d) => String(d.branch_id) === String(c.branch) && d.is_active).map((d) => h('option', { value: d.id, selected: String(d.id) === c.dept }, nm(d))));
+    const mI = inp({ type: 'month', value: c.month, 'aria-label': t('plMonth') });
+    const rangeNote = h('div', { class: 'muted' });
+    const fI = inp({ type: 'date', value: c.from }), tI = inp({ type: 'date', value: c.to });
+    const chips = h('div', { class: 'pills' });
+    const redraw = () => { rangeNote.textContent = monthLabel(c.month) + ': ' + rangeLabel(c.month); chips.replaceChildren(...weekChips(c.month, (a, b) => { c.from = a; c.to = b; fI.value = a; tI.value = b; redraw(); }, c)); };
+    if (brS) brS.addEventListener('change', () => { c.branch = brS.value; c.dept = ''; fillD(); });
+    dS.addEventListener('change', () => { c.dept = dS.value; });
+    mI.addEventListener('change', () => { c.month = mI.value; c.from = ''; c.to = ''; fI.value = ''; tI.value = ''; redraw(); });
+    fI.addEventListener('change', () => { c.from = fI.value; if (!tI.value || tI.value < fI.value) { c.to = addDays(fI.value, 6); tI.value = c.to; } redraw(); });
+    tI.addEventListener('change', () => { c.to = tI.value; redraw(); });
+    fillD(); redraw();
+    const go2 = async (btn) => {
+      if (!c.month || !fI.value || !tI.value) { toast(t('fieldsMissing'), 'err'); return; }
+      const n = daysBetween(fI.value, tI.value); if (!n || n > 31) { toast(t('schRange'), 'err'); return; }
+      btn.disabled = true;
+      try {
+        const row = await q(sb.from('schedule_plans').insert({ branch_id: Number(c.branch), department_id: dS.value ? Number(dS.value) : null, month: c.month + '-01', date_from: fI.value, date_to: tI.value }).select('id').single());
+        S.cache.plNew = null; S.cache.plNewOpen = false; toast(t('plCreated')); go('plan', row.id);
+      } catch (ex) { fail(ex); btn.disabled = false; }
+    };
+    creator.replaceChildren(h('div', { class: 'card', style: 'border-color:var(--accent);display:flex;flex-direction:column;gap:12px' },
+      h('div', { class: 'between' }, h('h2', { style: 'margin:0' }, t('plCreate')), h('button', { class: 'btn2 sm', type: 'button', onClick: () => { S.cache.plNewOpen = false; creator.replaceChildren(); } }, t('cancel'))),
+      h('div', { class: 'grid' }, brS ? field(t('cBranch'), brS) : null, field(t('plDept'), dS), field(t('plMonth'), mI)), rangeNote,
+      h('div', null, h('span', { class: 'lbl' }, t('plWeeks')), chips),
+      h('div', { class: 'grid' }, field(t('plFrom'), fI, { req: true }), field(t('plTo'), tI, { req: true })),
+      h('div', null, h('button', { class: 'btn', type: 'button', onClick: (e) => go2(e.currentTarget) }, t('plCreate')))));
+    S.cache.plNewOpen = true;
+  };
+  if (S.cache.plNewOpen && can('manage_schedules')) openCreate();
+  draw();
+  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+    h('div', { class: 'between' }, h('div', null, h('h1', null, t('plTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, t('plSub'))),
+      can('manage_schedules') ? h('button', { class: 'btn', type: 'button', onClick: openCreate }, t('plNew')) : null),
+    creator,
+    h('div', { class: 'row' }, h('div', { style: 'min-width:200px' }, mSel), bSel ? h('div', { style: 'min-width:200px' }, bSel) : null),
+    listBox);
+}
+async function viewPlan() {
+  const id = Number(S.param);
+  const [plan, depts] = await Promise.all([q(sb.from('schedule_plans').select('*').eq('id', id).maybeSingle()), q(sb.from('departments').select('*').order('name'))]);
+  if (!plan) return h('div', { class: 'box err' }, t('noRows'));
+  const header = (saveBtn, exportX, dirtyCount) => {
+    const copyBox = h('div');
+    const openCopy = () => {
+      const len = daysBetween(plan.date_from, plan.date_to);
+      const fI = inp({ type: 'date', value: addDays(plan.date_to, 1), 'aria-label': t('plCopyFrom') });
+      const doCopy = async (btn) => {
+        if (!fI.value) return; btn.disabled = true;
+        try {
+          const nf = fI.value, nt = addDays(nf, len - 1), shift = daysBetween(plan.date_from, nf) - 1;
+          const np = await q(sb.from('schedule_plans').insert({ branch_id: plan.branch_id, department_id: plan.department_id, month: cycleKey(nf) + '-01', date_from: nf, date_to: nt }).select('id').single());
+          let src = await q(sb.from('schedules').select('*').eq('branch_id', plan.branch_id).gte('work_date', plan.date_from).lte('work_date', plan.date_to));
+          if (plan.department_id) { const em = await q(sb.from('employees').select('id').eq('department_id', plan.department_id)); const ok = new Set(em.map((x) => x.id)); src = src.filter((r) => ok.has(r.employee_id)); }
+          if (src.length) await q(sb.from('schedules').upsert(src.map((r) => ({ employee_id: r.employee_id, branch_id: r.branch_id, work_date: addDays(r.work_date, shift), is_off: r.is_off, shift_id: r.shift_id, start_time: r.start_time, end_time: r.end_time })), { onConflict: 'employee_id,work_date' }));
+          toast(t('plCopied')); go('plan', np.id);
+        } catch (ex) { fail(ex); btn.disabled = false; }
+      };
+      copyBox.replaceChildren(h('div', { class: 'card row', style: 'align-items:end' }, h('div', { style: 'min-width:200px' }, field(t('plCopyFrom'), fI)), h('button', { class: 'btn sm', type: 'button', onClick: (e) => doCopy(e.currentTarget) }, t('plCopyGo')), h('button', { class: 'btn2 sm', type: 'button', onClick: () => copyBox.replaceChildren() }, t('cancel'))));
+    };
+    const setStatus = async (stt) => { try { await q(sb.from('schedule_plans').update({ status: stt }).eq('id', plan.id)); toast(t('saved')); render(); } catch (ex) { fail(ex); } };
+    const del = async () => { if (!confirm(t('plDelAsk'))) return; try { await q(sb.from('schedule_plans').delete().eq('id', plan.id)); if (S.cache.planDraft) delete S.cache.planDraft[plan.id]; toast(t('delOk')); go('schedule'); } catch (ex) { fail(ex); } };
+    return h('div', { style: 'display:flex;flex-direction:column;gap:10px' },
+      h('div', { class: 'no-print' }, link('#schedule', null, '← ' + t('plBack'))),
+      h('div', { class: 'between' }, h('div', null, h('h1', null, t('schTitle')), h('div', { class: 'row', style: 'margin-top:6px' }, h('span', { style: 'font-weight:700' }, planTitle(plan, depts)), planStatusChip(plan))),
+        h('div', { class: 'row no-print' }, h('button', { class: 'btn2', type: 'button', onClick: exportX }, t('schExcel')), h('button', { class: 'btn2', type: 'button', onClick: () => window.print() }, t('schPrint')),
+          can('manage_schedules') ? h('button', { class: 'btn2', type: 'button', onClick: openCopy }, t('plCopy')) : null,
+          isAdmin() ? h('button', { class: 'btn2', type: 'button', onClick: () => setStatus(plan.status === 'approved' ? 'draft' : 'approved') }, plan.status === 'approved' ? t('plUnapprove') : t('plApprove')) : null,
+          (isAdmin() || (can('manage_schedules') && plan.status === 'draft')) ? h('button', { class: 'btnd', type: 'button', onClick: del }, t('plDelete')) : null,
+          saveBtn)),
+      copyBox);
+  };
+  return viewPlanGrid(plan, header);
+}
+
+/* ---------- التقارير: كروت الشهور ---------- */
+async function viewReports() {
+  if (!can('view_reports')) return viewHome();
+  const cur = cycleKey(today());
+  const ps = (S.cal && S.cal.periods) || [];
+  const months = [...new Set([cur, ...ps.map((p) => String(p.month).slice(0, 7))])].sort().reverse();
+  const snaps = await q(sb.from('month_snapshots').select('month').limit(5000));
+  const snapSet = new Set(snaps.map((x) => String(x.month).slice(0, 7)));
+  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+    h('div', null, h('h1', null, t('repCards')), h('div', { class: 'muted', style: 'margin-top:4px' }, t('repCardsSub', { d: (S.cal && S.cal.sd) || 1, e: ((S.cal && S.cal.sd) || 1) === 1 ? '28-31' : (S.cal.sd - 1) }))),
+    months.length ? h('div', { class: 'plan-grid' }, months.map((m) => {
+      const p = ps.find((x) => String(x.month).slice(0, 7) === m);
+      const stt = p && !p.is_open && snapSet.has(m) ? chip(t('repSnapL'), 'off') : p && p.is_open ? chip(t('repOpen'), 'on') : chip(t('repClosedL'), 'off');
+      return h('a', { class: 'card plan-card', href: '#report/' + m },
+        h('div', { class: 'between' }, h('div', { style: 'font-weight:800;font-size:17px;color:var(--accent)' }, t('repOf', { m: monthLabel(m) })), stt),
+        h('div', { dir: 'ltr', style: 'text-align:start' }, rangeLabel(m)),
+        m === cur ? h('div', { class: 'muted' }, t('repCurrent')) : null);
+    })) : h('div', { class: 'card muted' }, t('repNoMonths')));
+}
+async function viewReport() {
+  if (!can('view_reports')) return viewHome();
+  const m = String(S.param || cycleKey(today())).slice(0, 7);
+  const tab = S.cache.repTab || 'month';
+  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' },
+    h('div', { class: 'no-print' }, link('#reports', null, '← ' + t('repAll'))),
+    h('div', null, h('h1', null, t('repOf', { m: monthLabel(m) })), h('div', { class: 'muted', style: 'margin-top:4px' }, rangeLabel(m))),
+    repTabs(), tab === 'daily' ? dailyReport(m) : await reportSummary(m));
+}
+
+/* ---------- تفاصيل الحدث ---------- */
+async function viewEvent() {
+  const id = Number(S.param);
+  const r = await q(sb.from('v_events').select('*').eq('id', id).maybeSingle());
+  if (!r) return h('div', { class: 'box err' }, t('noRows'));
+  const [users, hist] = await Promise.all([isAdmin() ? q(sb.rpc('admin_users')) : Promise.resolve([]), isAdmin() ? q(sb.from('audit_log').select('*').eq('tbl', 'events').eq('row_id', String(id)).order('at')) : Promise.resolve([])]);
+  const uN = (uid) => { const u = users.find((x) => x.id === uid); return u ? u.full_name : (uid && S.profile.id === uid ? S.profile.full_name : '—'); };
+  AU_CTX = Object.assign({ emps: [], types: [], details: [], depts: [], shifts: [] }, AU_CTX, { users });
+  const open = r.status === 'pending' || r.status === 'clarify';
+  const typeName = L() ? r.event_type_name_en || r.event_type_name : r.event_type_name;
+  const detName = (L() ? r.detail_name_en || r.detail_name : r.detail_name) || '—';
+  const kv = (k, v) => h('div', { class: 'kv' }, h('span', { class: 'muted' }, k), h('b', null, v == null || v === '' ? '—' : v));
+  let dur = '—';
+  if (r.time_from && r.time_to) { const mins = (Number(r.time_to.slice(0, 2)) * 60 + Number(r.time_to.slice(3, 5))) - (Number(r.time_from.slice(0, 2)) * 60 + Number(r.time_from.slice(3, 5))); dur = Math.floor(mins / 60) + ':' + pad2(mins % 60); }
+  else if (r.date_to !== r.date_from) dur = daysBetween(r.date_from, r.date_to) + ' ' + t('daysW');
+  const attBox = h('div', { class: 'muted' }, r.attachment ? t('loading') : t('evNoAttach'));
+  if (r.attachment) sb.storage.from('attachments').createSignedUrl(r.attachment, 300).then((s) => { if (s.error) { attBox.textContent = s.error.message; return; } attBox.replaceChildren(h('a', { href: s.data.signedUrl, target: '_blank', rel: 'noopener' }, h('img', { src: s.data.signedUrl, alt: t('evAttach'), class: 'att-img' }))); });
+  const act = async (patch, msg) => { try { await q(sb.from('events').update(patch).eq('id', id)); toast(msg); render(); } catch (ex) { fail(ex); } };
+  const actions = [];
+  if (can('approve_events') && open) {
+    const fi = inp({ type: 'number', min: '0', step: '0.25', value: r.final ?? r.suggested, style: 'max-width:110px', 'aria-label': t('cFinal') });
+    const reason = inp({ type: 'text', placeholder: t('rejReason'), 'aria-label': t('rejReason'), style: 'min-width:200px' });
+    actions.push(h('div', { class: 'row' }, h('span', { class: 'muted' }, t('cFinal')), fi, h('span', null, unitName(r.unit)),
+      h('button', { class: 'btn sm', type: 'button', onClick: () => act({ status: 'approved', final: Number(fi.value === '' ? r.suggested : fi.value) }, t('approved')) }, t('approve')),
+      h('button', { class: 'btn2 sm', type: 'button', onClick: () => { const note = prompt(t('clarifyAsk'), r.review_note || ''); if (note !== null) act({ status: 'clarify', review_note: nn(note.trim()) }, t('clarified')); } }, t('clarify'))),
+      h('div', { class: 'row' }, reason, h('button', { class: 'btnd sm', type: 'button', onClick: () => { if (!reason.value.trim()) { toast(t('rejReason'), 'err'); return; } act({ status: 'rejected', review_note: reason.value.trim() }, t('rejected')); } }, t('reject'))));
+  }
+  if (isAdmin() && r.status === 'approved') actions.push(h('button', { class: 'btn2 sm', type: 'button', onClick: () => { const v = prompt(t('editFinalAsk'), r.final); if (v === null || v.trim() === '' || isNaN(Number(v))) return; act({ final: Number(v) }, t('saved')); } }, t('editFinal')));
+  if (open && (isAdmin() || can('edit_events'))) actions.push(link('#register/' + id, { class: 'btn2 sm' }, t('editBtn')));
+  if (isAdmin()) actions.push(h('button', { class: 'btnd sm', type: 'button', onClick: async () => { if (!confirm(t('confirmDelEv'))) return; try { await q(sb.from('events').delete().eq('id', id)); toast(t('delOk')); go('events'); } catch (ex) { fail(ex); } } }, t('delBtn')));
+  return h('div', { style: 'display:flex;flex-direction:column;gap:16px;max-width:1000px' },
+    h('div', { class: 'no-print' }, link('#events', null, '← ' + t('evBack'))),
+    h('div', { class: 'between' }, h('div', null, h('h1', null, typeName), h('div', { class: 'row', style: 'margin-top:6px' }, h('span', { style: 'font-weight:700' }, r.employee_name + ' (' + r.employee_code + ')'), statusChip(r.status))),
+      h('div', { class: 'row no-print' }, h('button', { class: 'btn2', type: 'button', onClick: () => window.print() }, t('evPrint')))),
+    h('div', { class: 'print-only' }, h('div', { class: 'row' }, h('img', { src: LOGO, alt: '', style: 'width:40px;height:40px' }), h('h2', { style: 'margin:0' }, 'NoVoDux Academy — ' + t('evDetail')))),
+    h('div', { class: 'card' }, h('div', { class: 'between', style: 'margin-bottom:10px' }, h('h2', { style: 'margin:0' }, t('evDecision')), h('div', { class: 'big-sign' }, r.status === 'approved' ? signed(r.category, r.final, r.unit) : r.status === 'rejected' ? chip(t('fsRejected'), 'err') : signed(r.category, r.suggested, r.unit))),
+      h('div', { class: 'kvgrid' }, kv(t('cSug'), signed(r.category, r.suggested, r.unit)), kv(t('cFinal'), r.status === 'approved' ? signed(r.category, r.final, r.unit) : '—'), kv(t('cStatus'), statusChip(r.status)),
+        r.review_note ? kv(r.status === 'rejected' ? t('reasonP') : t('noteP'), r.review_note) : null),
+      actions.length ? h('div', { class: 'no-print row', style: 'gap:10px;margin-top:12px;border-top:1px solid var(--row);padding-top:12px;align-items:center' }, actions) : null),
+    h('div', { class: 'card' }, h('h2', null, t('evDetail')), h('div', { class: 'kvgrid' },
+      kv(t('fEmployee'), link('#employee/' + r.employee_id, null, r.employee_name + ' (' + r.employee_code + ')')), kv(t('cBranch'), L() ? r.branch_name_en : r.branch_name), kv(t('fEventType'), typeName), kv(t('fDetail'), detName),
+      kv(t('cDate'), r.date_to !== r.date_from ? fmtDate(r.date_from) + ' – ' + fmtDate(r.date_to) : fmtDate(r.date_from)), kv(t('cTime'), r.time_from ? tm(r.time_from) + ' – ' + tm(r.time_to) : '—'),
+      kv(t('evDuration'), dur), kv(t('repMonth'), monthLabel(r.month_key)), kv(t('evRepeat'), r.repeat_no > 1 ? r.repeat_no : '—'),
+      kv(t('byMgr').replace(': ', ''), r.manager_notes), kv(t('evCreated'), (isAdmin() ? uN(r.created_by) + ' · ' : '') + new Date(r.created_at).toLocaleString('en-GB')),
+      kv(t('evReviewed'), r.reviewed_at ? (isAdmin() ? uN(r.reviewed_by) + ' · ' : '') + new Date(r.reviewed_at).toLocaleString('en-GB') : '—'))),
+    h('div', { class: 'card' }, h('h2', null, t('evAttach')), attBox),
+    isAdmin() ? h('div', { class: 'card' }, h('h2', null, t('evHistory')), hist.length ? h('ul', { style: 'margin:0;padding-inline-start:18px;line-height:1.9' }, hist.map((a) => h('li', null,
+      h('span', { class: 'muted', dir: 'ltr' }, new Date(a.at).toLocaleString('en-GB')), ' — ', uN(a.user_id), ': ', a.action === 'I' ? t('auAdded') : a.action === 'D' ? t('auDeleted') : t('auEdited'),
+      a.action === 'U' && a.changes ? h('div', { class: 'muted' }, Object.entries(a.changes).filter(([k]) => AU_FIELDS[k] !== null).map(([k, v]) => fieldLabel(k) + ': ' + fmtAuVal(k, v[0], AU_CTX) + ' ← ' + fmtAuVal(k, v[1], AU_CTX)).join(' · ')) : null))) : h('div', { class: 'muted' }, t('evNoHistory'))) : null);
+}
+
+/* ---------- سجل التعديلات المقروء ---------- */
+const AU_FIELDS = {
+  updated_at: null, created_at: null, reviewed_at: null, approved_at: null, id: null, sel: null, encrypted_password: null,
+  full_name: ['الاسم', 'Name'], code: ['الكود', 'Code'], status: ['الحالة', 'Status'], final: ['القرار النهائي', 'Final decision'], suggested: ['المقترح', 'Suggested'], review_note: ['ملاحظة المراجع', 'Reviewer note'],
+  manager_notes: ['ملاحظات المدير', 'Manager notes'], date_from: ['من تاريخ', 'From'], date_to: ['إلى تاريخ', 'To'], time_from: ['من الساعة', 'From time'], time_to: ['إلى الساعة', 'To time'],
+  employee_id: ['الموظف', 'Employee'], branch_id: ['الفرع', 'Branch'], primary_branch_id: ['الفرع الأساسي', 'Main branch'], event_type_id: ['نوع الحدث', 'Event type'], detail_id: ['التفصيل', 'Detail'],
+  department_id: ['القسم', 'Department'], manager_id: ['المدير المباشر', 'Line manager'], job_title: ['المسمى الوظيفي', 'Job title'], hire_date: ['تاريخ التعيين', 'Hire date'], phone: ['الهاتف', 'Phone'],
+  national_id: ['الرقم القومي', 'National ID'], birth_date: ['تاريخ الميلاد', 'Birth date'], address: ['العنوان', 'Address'], fingerprint_code: ['كود البصمة', 'Fingerprint'], notes: ['ملاحظات', 'Notes'],
+  work_hours: ['ساعات العمل', 'Work hours'], rest_days: ['أيام الراحة', 'Rest days'], salary: ['الراتب', 'Salary'], attachment: ['المرفق', 'Attachment'], reviewed_by: ['المراجع', 'Reviewer'], created_by: ['المسجِّل', 'Created by'], approved_by: ['المعتمِد', 'Approved by'],
+  perms: ['الصلاحيات', 'Permissions'], role: ['الدور', 'Role'], is_active: ['مفعّل', 'Active'], username: ['اسم المستخدم', 'Username'], is_open: ['مفتوح للتسجيل', 'Open'], closed_at: ['تاريخ الإغلاق', 'Closed at'],
+  start_date: ['البداية', 'Start'], end_date: ['النهاية', 'End'], month: ['الشهر', 'Month'], value: ['القيمة', 'Value'], key: ['الإعداد', 'Setting'], name: ['الاسم', 'Name'], name_en: ['الاسم بالإنجليزي', 'English name'],
+  work_date: ['اليوم', 'Day'], is_off: ['راحة', 'Off'], shift_id: ['الوردية', 'Shift'], start_time: ['من', 'From'], end_time: ['إلى', 'To'], days: ['الأيام', 'Days'], year: ['السنة', 'Year'], balance_type: ['نوع الرصيد', 'Balance'],
+  effective_date: ['تاريخ السريان', 'Effective date'], from_branch_id: ['من فرع', 'From branch'], to_branch_id: ['إلى فرع', 'To branch'], end_reason: ['سبب الانتهاء', 'End reason'], default_value: ['القيمة الافتراضية', 'Default value'],
+  category: ['الفئة', 'Category'], unit: ['الوحدة', 'Unit'], instructions: ['التعليمات', 'Instructions'], instructions_en: ['التعليمات بالإنجليزي', 'Instructions (EN)'], sort: ['الترتيب', 'Order'], day: ['اليوم', 'Day']
+};
+const fieldLabel = (k) => (AU_FIELDS[k] ? AU_FIELDS[k][L() ? 1 : 0] : k);
+const SETTING_L = { annual_leave_days: ['رصيد الاعتيادي السنوي', 'Annual leave days'], casual_leave_days: ['حد العارضة', 'Casual leave limit'], leave_eligibility_months: ['شهور استحقاق الإجازة', 'Leave eligibility months'], annual_monthly_cap: ['الحد الشهري للاعتيادي', 'Monthly annual cap'], attachments_keep_years: ['مدة الاحتفاظ بالمرفقات', 'Attachment retention'], month_start_day: ['يوم بداية الشهر', 'Month start day'], perms_v5_migrated: ['ترحيل الصلاحيات', 'Permissions migration'], plans_v6_migrated: ['ترحيل الخطط', 'Plans migration'] };
+let AU_CTX = { emps: [], types: [], details: [], depts: [], users: [], shifts: [] };
+function fmtAuVal(k, v, c) {
+  if (v === null || v === undefined || v === '') return '∅';
+  const byId = (arr, id, f) => { const x = arr.find((y) => String(y.id) === String(id)); return x ? f(x) : '#' + id; };
+  if (k === 'employee_id' || k === 'manager_id') return byId(c.emps, v, (e) => e.full_name + ' (' + e.code + ')');
+  if (k === 'branch_id' || k === 'primary_branch_id' || k === 'from_branch_id' || k === 'to_branch_id') return bName(S.branches.find((b) => String(b.id) === String(v)));
+  if (k === 'event_type_id') return byId(c.types, v, nm);
+  if (k === 'detail_id') return byId(c.details, v, nm);
+  if (k === 'department_id') return byId(c.depts, v, nm);
+  if (k === 'shift_id') return byId(c.shifts, v, nm);
+  if (k === 'created_by' || k === 'reviewed_by' || k === 'approved_by') return byId(c.users, v, (u) => u.full_name);
+  if (k === 'status') return ({ pending: t('fsPending'), clarify: t('fsClarify'), approved: t('fsApproved'), rejected: t('fsRejected'), draft: t('plDraft'), active: t('stActive'), terminated: t('stTerm') })[v] || v;
+  if (k === 'rest_days' && Array.isArray(v)) return restText(v);
+  if (k === 'perms' && Array.isArray(v)) { const lab = {}; PERM_GROUPS.forEach(([, l]) => l.forEach(([p, kk]) => (lab[p] = t(kk)))); return v.map((p) => lab[p] || p).join('، ') || '∅'; }
+  if (k === 'role') return v === 'admin' ? t('admin') : t('manager');
+  if (k === 'category') return ({ deduction: t('catDed'), entitlement: t('catEnt'), leave: t('catLeave'), permission: t('catPerm'), neutral: t('catNeu') })[v] || v;
+  if (k === 'unit') return unitName(v);
+  if (k === 'balance_type') return v === 'annual' ? t('balAnnual') : v === 'casual' ? t('balCasual') : v;
+  if (typeof v === 'boolean') return v ? t('yes') : '✕';
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return fmtDate(v);
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) return new Date(v).toLocaleString('en-GB');
+  if (typeof v === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(v)) return v.slice(0, 5);
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+async function viewAudit() {
+  const [users, emps, types, details, depts, shifts] = await Promise.all([q(sb.rpc('admin_users')), q(sb.from('employees').select('id,code,full_name')), q(sb.from('event_types').select('id,name,name_en')),
+    q(sb.from('event_details').select('id,name,name_en')), q(sb.from('departments').select('id,name,name_en')), q(sb.from('shift_templates').select('id,name,name_en'))]);
+  AU_CTX = { emps, types, details, depts, users, shifts };
+  const f = S.cache.auf || (S.cache.auf = { tbl: '', user: '', from: '', to: '' });
+  const st = S.cache.auSort || (S.cache.auSort = { key: 'at', dir: -1 });
+  const tblName = (x) => (L() ? x : (TBL.ar[x] || x));
+  const uName = (id) => { const u = users.find((x) => x.id === id); return u ? u.full_name : (id ? id.slice(0, 8) : t('auSystem')); };
+  const tSel = sel([['', t('auAll')], ...Object.keys(TBL.ar).concat(['schedule_plans']).map((k) => [k, k === 'schedule_plans' ? (L() ? k : 'خطط الأسبوع') : tblName(k)])], f.tbl, { 'aria-label': t('auTable') });
+  const uSel = sel([['', t('auAllUsers')], ...users.map((u) => [u.id, u.full_name])], f.user, { 'aria-label': t('auUser') });
+  const fI = inp({ type: 'date', value: f.from, 'aria-label': t('auFrom') }), tI = inp({ type: 'date', value: f.to, 'aria-label': t('auTo') });
+  const box = h('div'); let rows = [], evMap = new Map(), schMap = new Map();
+  const empTxt = (id) => { const e = emps.find((x) => x.id === Number(id)); return e ? e.full_name + ' (' + e.code + ')' : '#' + id; };
+  const describe = (r) => {
+    const old = r.action === 'D' ? r.changes || {} : {};
+    const tb = r.tbl === 'schedule_plans' ? (L() ? 'Plan' : 'خطة أسبوع') : tblName(r.tbl);
+    if (r.tbl === 'events') { const ev = evMap.get(Number(r.row_id)) || old; const ty = types.find((x) => x.id === ev.event_type_id); return (L() ? 'Event ' : 'حدث «') + (ty ? nm(ty) : '#' + r.row_id) + (L() ? '' : '»') + (ev.employee_id ? (L() ? ' for ' : ' لـ ') + empTxt(ev.employee_id) : '') + (ev.date_from ? (L() ? ' on ' : ' بتاريخ ') + fmtDate(ev.date_from) : ''); }
+    if (r.tbl === 'employees') return tb + ': ' + empTxt(r.row_id);
+    if (['employee_salary', 'leave_entitlements', 'employee_branches', 'employment_periods', 'employee_transfers'].includes(r.tbl) && (old.employee_id || r.tbl !== 'employment_periods')) return tb + ': ' + empTxt(old.employee_id || r.row_id);
+    if (r.tbl === 'schedules') { const s2 = schMap.get(Number(r.row_id)) || old; return tb + ': ' + (s2.employee_id ? empTxt(s2.employee_id) : '#' + r.row_id) + (s2.work_date ? ' — ' + fmtDate(s2.work_date) : ''); }
+    if (r.tbl === 'profiles') return tb + ': ' + uName(r.row_id);
+    if (r.tbl === 'periods') return tb + ': ' + monthLabel(String(r.row_id).slice(0, 7));
+    if (r.tbl === 'settings') return tb + ': ' + (SETTING_L[r.row_id] ? SETTING_L[r.row_id][L() ? 1 : 0] : r.row_id);
+    if (r.tbl === 'holidays') return tb + (old.day ? ': ' + fmtDate(old.day) : '');
+    if (r.tbl === 'branches') return tb + ': ' + bName(S.branches.find((b) => String(b.id) === String(r.row_id)));
+    if (r.tbl === 'event_types') return tb + ': ' + fmtAuVal('event_type_id', r.row_id, AU_CTX);
+    if (r.tbl === 'departments') return tb + ': ' + fmtAuVal('department_id', r.row_id, AU_CTX);
+    if (r.tbl === 'shift_templates') return tb + ': ' + fmtAuVal('shift_id', r.row_id, AU_CTX);
+    return tb + (r.row_id ? ' #' + r.row_id : '');
+  };
+  const verb = (a) => (a === 'I' ? t('auAdded') : a === 'D' ? t('auDeleted') : t('auEdited'));
+  const sortVal = (r, k) => ({ at: r.at, user: uName(r.user_id), tbl: tblName(r.tbl), action: r.action })[k];
+  const draw = () => {
+    const list = rows.slice().sort((a, b) => cmpAny(sortVal(a, st.key), sortVal(b, st.key)) * st.dir || (a.at < b.at ? 1 : -1));
+    const head = h('tr', null, sortHead(t('auWhen'), 'at', st, draw), sortHead(t('auWho'), 'user', st, draw), sortHead(t('auTable'), 'tbl', st, draw), sortHead(t('auAction'), 'action', st, draw), h('th', null, t('auSentence')));
+    box.replaceChildren(h('div', { class: 'muted', style: 'margin-bottom:8px' }, t('count') + ': ' + list.length), h('div', { class: 'card scroll', style: 'padding:0' }, h('table', { style: 'min-width:980px' }, h('thead', null, head),
+      h('tbody', null, list.length ? list.map((r) => {
+        const changes = r.action === 'U' && r.changes ? Object.entries(r.changes).filter(([k]) => AU_FIELDS[k] !== null) : [];
+        const tr = h('tr', null, h('td', { style: 'white-space:nowrap', dir: 'ltr' }, new Date(r.at).toLocaleString('en-GB')), h('td', null, uName(r.user_id)), h('td', null, r.tbl === 'schedule_plans' ? (L() ? 'Plans' : 'خطط الأسبوع') : tblName(r.tbl)),
+          h('td', null, chip(t('au' + r.action), r.action === 'D' ? 'err' : r.action === 'U' ? 'warn' : 'on')),
+          h('td', null, h('div', { style: 'font-weight:600' }, uName(r.user_id) + ' ' + verb(r.action) + ' ' + describe(r)),
+            changes.length ? h('ul', { class: 'au-ch' }, changes.map(([k, v]) => h('li', null, h('b', null, fieldLabel(k) + ': '), fmtAuVal(k, v[0], AU_CTX), ' ← ', h('span', { style: 'font-weight:700' }, fmtAuVal(k, v[1], AU_CTX))))) : null));
+        if (r.tbl === 'events' && evMap.has(Number(r.row_id))) rowLink(tr, '#event/' + r.row_id);
+        return tr;
+      }) : h('tr', null, h('td', { colspan: '5', class: 'muted', style: 'text-align:center;padding:24px' }, t('auNoRows')))))));
+  };
+  const load = async () => {
+    f.tbl = tSel.value; f.user = uSel.value; f.from = fI.value; f.to = tI.value;
+    box.replaceChildren(h('div', { class: 'muted' }, t('loading')));
+    try {
+      let qq = sb.from('audit_log').select('*').order('at', { ascending: false }).limit(500);
+      if (f.tbl) qq = qq.eq('tbl', f.tbl);
+      if (f.user) qq = qq.eq('user_id', f.user);
+      if (f.from) qq = qq.gte('at', f.from + 'T00:00:00');
+      if (f.to) qq = qq.lt('at', addDays(f.to, 1) + 'T00:00:00');
+      rows = await q(qq);
+      const evIds = [...new Set(rows.filter((r) => r.tbl === 'events').map((r) => Number(r.row_id)))].filter(Boolean);
+      const schIds = [...new Set(rows.filter((r) => r.tbl === 'schedules').map((r) => Number(r.row_id)))].filter(Boolean);
+      const [evs, schs] = await Promise.all([evIds.length ? q(sb.from('events').select('id,employee_id,event_type_id,date_from').in('id', evIds.slice(0, 300))) : [], schIds.length ? q(sb.from('schedules').select('id,employee_id,work_date').in('id', schIds.slice(0, 300))) : []]);
+      evMap = new Map(evs.map((x) => [x.id, x])); schMap = new Map(schs.map((x) => [x.id, x]));
+      draw();
+    } catch (ex) { box.replaceChildren(h('div', { class: 'box err' }, t('errGeneric') + ex.message)); }
+  };
+  [tSel, uSel, fI, tI].forEach((x) => x.addEventListener('change', load));
+  load();
+  return h('div', { style: 'display:flex;flex-direction:column;gap:14px' }, h('div', null, h('h1', null, t('auTitle')), h('div', { class: 'muted', style: 'margin-top:4px' }, t('auSubNew'))),
+    h('div', { class: 'card grid' }, field(t('auUser'), uSel), field(t('auTable'), tSel), field(t('auFrom'), fI), field(t('auTo'), tI)), box);
+}
+
+/* ---------- إعدادات الشهر الإداري ---------- */
+function cycleSettingsCard() {
+  const sdI = inp({ type: 'number', min: '1', max: '28', value: (S.cal && S.cal.sd) || 1, style: 'max-width:120px', 'aria-label': t('sStartDay') });
+  const ex = h('div', { class: 'muted' });
+  const cur = cycleKey(today());
+  const showEx = () => { ex.textContent = t('sCycleEx', { m: monthLabel(cur), s: fmtDate(bounds(cur).s), e: fmtDate(bounds(cur).e) }); };
+  showEx();
+  const saveSd = async (btn) => {
+    const v = Number(sdI.value); if (!(v >= 1 && v <= 28)) { toast(t('sStartDay'), 'err'); return; }
+    btn.disabled = true; try { await q(sb.from('settings').upsert({ key: 'month_start_day', value: v })); toast(t('saved')); await loadCal(); render(); } catch (e) { fail(e); btn.disabled = false; }
+  };
+  const ps = ((S.cal && S.cal.periods) || []).slice().sort((a, b) => (a.month < b.month ? 1 : -1));
+  const months = [...new Set([addMonths(cur, 1), cur, ...ps.map((p) => String(p.month).slice(0, 7))])].sort().reverse().slice(0, 14);
+  const rowsEls = months.map((m) => {
+    const p = ps.find((x) => String(x.month).slice(0, 7) === m);
+    const s0 = (() => { const keep = S.cal.periods; S.cal.periods = []; const b = bounds(m); S.cal.periods = keep; return b; })();
+    const sI = inp({ type: 'date', value: p && p.start_date ? p.start_date : '', placeholder: s0.s, 'aria-label': t('sCycleStart') });
+    const eI = inp({ type: 'date', value: p && p.end_date ? p.end_date : '', placeholder: s0.e, 'aria-label': t('sCycleEnd') });
+    const b = bounds(m), prev = bounds(addMonths(m, -1)), next = bounds(addMonths(m, 1));
+    const gap = addDays(prev.e, 1) !== b.s || addDays(b.e, 1) !== next.s;
+    const save = async (clear) => {
+      try { await q(sb.from('periods').upsert({ month: m + '-01', is_open: p ? p.is_open : false, start_date: clear ? null : nn(sI.value), end_date: clear ? null : nn(eI.value) })); toast(t('saved')); await loadCal(); render(); } catch (e) { fail(e); }
+    };
+    return h('tr', null, h('td', { style: 'font-weight:700' }, monthLabel(m)), h('td', { dir: 'ltr' }, fmtDate(b.s) + ' – ' + fmtDate(b.e), gap ? h('div', { class: 'cnote' }, t('sCycleGap')) : null),
+      h('td', null, sI, h('div', { class: 'muted' }, t('sCycleDefault') + ': ' + fmtDate(s0.s))), h('td', null, eI, h('div', { class: 'muted' }, t('sCycleDefault') + ': ' + fmtDate(s0.e))),
+      h('td', null, h('div', { class: 'row', style: 'flex-wrap:nowrap' }, h('button', { class: 'btn2 sm', type: 'button', onClick: () => save(false) }, t('save')), p && (p.start_date || p.end_date) ? h('button', { class: 'btn2 sm', type: 'button', onClick: () => save(true) }, t('sCycleReset')) : null)));
+  });
+  return h('div', { class: 'card', style: 'display:flex;flex-direction:column;gap:12px' }, h('h2', { style: 'margin:0' }, t('sCycle')), h('div', { class: 'muted' }, t('sCycleNote')),
+    h('div', { class: 'row', style: 'align-items:end' }, h('div', null, h('label', { class: 'lbl' }, t('sStartDay')), sdI), h('button', { class: 'btn sm', type: 'button', onClick: (e) => saveSd(e.currentTarget) }, t('save')), ex),
+    h('h2', { style: 'margin:8px 0 0' }, t('sCycleMonths')), h('div', { class: 'muted' }, t('sCycleMonthsNote')),
+    h('div', { class: 'scroll' }, h('table', { style: 'min-width:760px' }, h('thead', null, h('tr', null, h('th', null, t('sCycleMonth')), h('th', null, t('plRange')), h('th', null, t('sCycleStart')), h('th', null, t('sCycleEnd')), h('th', null, ''))), h('tbody', null, rowsEls))));
 }
 
 /* ====================== التشغيل ====================== */
